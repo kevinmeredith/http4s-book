@@ -1,0 +1,1 @@
+This repo hosts the contents of my book on http4s.
