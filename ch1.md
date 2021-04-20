@@ -10,22 +10,23 @@ A Scala/FP Developer critically commented on [Twitter](https://twitter.com/hmemc
 
 > This does not belong anywhere near getting started.
 
-I can see the author's point, however let's walk through this explanation in-depth.
+I can see the author's point, yet the documentation is no doubt correct. Let's walk through this explanation in-depth.
 
 [cats](https://github.com/typelevel/cats) documents [Kleisli](https://typelevel.org/cats/datatypes/kleisli.html), [OptionT](https://typelevel.org/cats/datatypes/optiont.html),
-and many other concepts.
+and many other concepts. Please read those descriptions if you're not comfortable with them.
 
-Roughly speaking, the power and simplicity of that complex type is composition. An entire web service consists of one or more `HttpRoutes[F]`.
+The power and simplicity of that type is composition. In http4s, a web server consists of one or more combined `HttpRoutes[F]`.
 
 Let's break down `HttpRoutes[IO]`. Recall it's a type alias for `Kleisli[OptionT[IO, *], Request[IO], Response[IO]]`. It's effectively
-a function: `Request[IO] => OptionT[IO, Response[IO]]`.
+a function: `Request[IO] => OptionT[IO, Response[IO]]`. The `Request[IO]` represents an HTTP Request. The `OptionT[IO, Response[IO]]`
+speaks to the optional HTTP Response.
 
-So, for a given `Request[IO]`, it's applied to an `Kleisli[OptionT[IO, *], Request[IO], Response[IO]]` to return a `OptionT[IO, Response[IO]]`.
+Note the optionality, namely `OptionT[IO, Response[IO]]`, since the given `Request[IO]` may not apply to or match the
+`HttpRoutes[F]`. In other words the route may not actually handle the given request, hence the optionality.
 
-Note the optionality, namely `OptionT[IO, *]`, since the given `Request[IO]` may not apply to the `HttpRoutes[F]`. In other
-words the route may not actually handle the given request, i.e. the `Request[IO]` may pass through it.
-
-The following examples show the evaluation of supplying a `Request[IO]` to a `OptionT[IO, Response[IO]]`
+The following examples show the evaluation of supplying a `Request[IO]` to a `OptionT[IO, Response[IO]]`. In this
+example, observe that non-empty response will be returned since the `HttpRoutes[IO]` handles the `Request[IO]`, namely
+returning an `Response[IO](status = Status.Ok)`.
 
 ```scala
 sbt:http4s-book> console
@@ -67,7 +68,8 @@ scala> fooService.run(barRequest).value.unsafeRunSync
 res2: Option[org.http4s.Response[cats.effect.IO]] = None
 ```
 
-I previously mentioned the power of composition. Let's look at how we can compose two `HttpRoutes[IO]` into a single one.
+I previously mentioned the power of composition. Let's now look at how we can compose two `HttpRoutes[IO]` into a single
+one.
 
 ```scala
 scala> import cats.implicits._
@@ -88,3 +90,12 @@ res4: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=200, he
 scala> combined.run(barRequest).value.unsafeRunSync
 res5: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=204, headers=Headers()))
 ```
+
+The ability to compose `HttpRoutes[IO]` is significant. In my experience, I've found building separate, small `HttpRoutes[IO]`
+to be better than building large `HttpRoutes[IO]`. By "large" and "small," I'm talking about the number of pattern match cases.
+
+The following benefits apply to building separate, small `HttpRoutes[IO]`:
+
+    * Readability - understanding an `HttpRoutes[IO]` with 1 path is easier to understand than 10 paths.
+    * Testability - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than a 10
+                    path test. Consequently, 
