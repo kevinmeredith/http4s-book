@@ -10,6 +10,8 @@ A well-known Scala/FP Developer critically commented on [Twitter](https://twitte
 
 > This does not belong anywhere near getting started.
 
+I can see the author's point, however let's walk through this explanation in-depth.
+
 [cats](https://github.com/typelevel/cats) documents [Kleisli](https://typelevel.org/cats/datatypes/kleisli.html), [OptionT](https://typelevel.org/cats/datatypes/optiont.html),
 and many other concepts.
 
@@ -26,54 +28,63 @@ route may not actually handle the given request.
 The following examples show the evaluation of supplying a `Request[IO]` to ``
 
 ```scala
-@ import $ivy.`org.http4s::http4s-core:0.21.21`
-import $ivy.$
+sbt:http4s-book> console
+[info] Starting scala interpreter...
+Welcome to Scala 2.12.12 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_112).
+Type in expressions for evaluation. Or try :help.
 
-@ import $ivy.`org.http4s::http4s-dsl:0.21.21`
-import $ivy.$
+scala> import org.http4s._, cats.effect._, cats._, cats.data._, org.http4s.dsl.io._, org.http4s.implicits._
+import org.http4s._
+import cats.effect._
+import cats._
+import cats.data._
+import org.http4s.dsl.io._
+import org.http4s.implicits._
 
-@ import org.http4s._, cats.effect._, cats._, cats.data._, org.http4s.dsl.io._, org.http4s.implicits._
-import org.http4s._, cats.effect._, cats._, cats.data._, org.http4s.dsl.io._, org.http4s.implicits._
+scala> val fooRequest: Request[IO] = Request[IO](uri = uri"www.leanpub.com").withPathInfo("/foo")
+fooRequest: org.http4s.Request[cats.effect.IO] = Request(method=GET, uri=/foo, headers=Headers())
 
-@ val fooRequest: Request[IO] = Request[IO](uri = uri"www.leanpub.com").withPathInfo("/foo")
-fooRequest: Request[IO] = (
-  Method("GET"),
-  Uri(None, None, "/foo", , None),
-  HttpVersion(1, 1),
-  Headers(),
-  Stream(..),
-  io.chrisdavenport.vault.Vault@17a3bd57
-)
+scala> val fooService: HttpRoutes[IO] = HttpRoutes.of[IO] {
+     |     case GET -> Root / "foo" => IO.pure(Response[IO](status = Status.Ok))
+     |   }
+fooService: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(org.http4s.HttpRoutes$$$Lambda$4760/1573956710@6093fe7c)
 
-@ val fooService: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case GET -> Root / "foo" => IO.pure(Response[IO](status = Status.Ok))
-  }
-fooService: HttpRoutes[IO] = Kleisli(org.http4s.HttpRoutes$$$Lambda$3042/1103551404@26e185e2)
+scala> fooService.run(fooRequest).value
+res0: cats.effect.IO[Option[org.http4s.Response[cats.effect.IO]]] = IO$1434040922
 
-@ fooService.run(fooRequest).value
-res23: IO[Option[Response[IO]]] = Suspend(org.http4s.HttpRoutes$$$Lambda$3127/530611995@72bfd4ae)
-
-@ fooService.run(fooRequest).value.unsafeRunSync
-res24: Option[Response[IO]] = Some(
-  Response(Status(200), HttpVersion(1, 1), Headers(), Stream(..), io.chrisdavenport.vault.Vault@14aadfc3)
-)
+scala> fooService.run(fooRequest).value.unsafeRunSync
+res1: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=200, headers=Headers()))
 ```
 
 In the following, note that `None` will be returned. That's because, upon execution of the `IO`,
 the given `Request[IO]` does not apply or match the `HttpRoutes[IO]`.
 
 ```scala
-@ val barRequest: Request[IO] = Request[IO](uri = uri"www.leanpub.com").withPathInfo("/bar")
-barRequest: Request[IO] = (
-  Method("GET"),
-  Uri(None, None, "/bar", , None),
-  HttpVersion(1, 1),
-  Headers(),
-  Stream(..),
-  io.chrisdavenport.vault.Vault@9df44c4
-)
+scala> val barRequest: Request[IO] = Request[IO](uri = uri"www.leanpub.com").withPathInfo("/bar")
+barRequest: org.http4s.Request[cats.effect.IO] = Request(method=GET, uri=/bar, headers=Headers())
 
-// Recall that fooService only handles "GET /foo"
-@ fooService.run(barRequest).value.unsafeRunSync
-res26: Option[Response[IO]] = None
+scala> fooService.run(barRequest).value.unsafeRunSync
+res2: Option[org.http4s.Response[cats.effect.IO]] = None
+```
+
+I previously mentioned the power of composition. Let's look at how we can compose two `HttpRoutes[IO]` into a single one.
+
+```scala
+scala> import cats.implicits._
+import cats.implicits._
+
+scala> val barService: HttpRoutes[IO] = HttpRoutes.of[IO] {
+     |   case GET -> Root / "bar" => IO.pure(Response[IO](status = Status.NoContent))
+     | }
+barService: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(org.http4s.HttpRoutes$$$Lambda$4760/1573956710@60088dfe)
+
+// As the http4s' docs note, it's necessary to use the '-Ypartial-unification scalac option when using `<+>`
+scala> val combined: HttpRoutes[IO] = fooService <+> barService
+combined: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(cats.data.KleisliSemigroupK$$Lambda$4828/455661998@2dc11b92)
+
+scala> combined.run(fooRequest).value.unsafeRunSync
+res4: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=200, headers=Headers()))
+
+scala> combined.run(barRequest).value.unsafeRunSync
+res5: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=204, headers=Headers()))
 ```
