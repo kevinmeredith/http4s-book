@@ -91,11 +91,45 @@ scala> combined.run(barRequest).value.unsafeRunSync
 res5: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=204, headers=Headers()))
 ```
 
-The ability to compose `HttpRoutes[IO]` is significant. In my experience, I've found building separate, small `HttpRoutes[IO]`
+With the aim of making the optionality piece crystal clear, let's look at the signature of the `HttpRoutes#of[IO]` method:
+
+
+```scala
+  def of[F[_]: Defer: Applicative](pf: PartialFunction[Request[F], F[Response[F]]]): HttpRoutes[F] =
+```
+
+Before we proceed, let's look at the type classes, `Defer` and `Applicative`.
+
+The [cats](https://github.com/typelevel/cats/blob/v2.4.2/core/src/main/scala/cats/Defer.scala#L6-L22) code includes
+the following comment:
+
+> Defer is a type class that shows the ability to defer creation
+> ...
+> The law is that defer(fa) is equivalent to fa, but not evaluated immediately,
+
+```scala
+trait Defer[F[_]] {
+    def defer[A](fa: => F[A]): F[A]
+}
+```
+
+[cats](https://github.com/typelevel/cats/blob/v2.4.2/core/src/main/scala/cats/Applicative.scala#L18-L31) defines `Applicative`.
+
+```scala
+trait Applicative[F[_]] extends Apply[F] ... {
+    def pure[A](x: A): F[A]
+    def ap[A, B](ff: F[A => B])(fa: F[A]): F[B]
+}
+```
+
+The ability to compose `HttpRoutes[IO]` is significant. In my professional experience, I've found building separate, small `HttpRoutes[IO]`
 to be better than building large `HttpRoutes[IO]`. By "large" and "small," I'm talking about the number of pattern match cases.
 
-The following benefits apply to building separate, small `HttpRoutes[IO]`:
+Building separate, small `HttpRoutes[IO]`, offers the following benefits:
 
-    * Readability - understanding an `HttpRoutes[IO]` with 1 path is easier to understand than 10 paths.
-    * Testability - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than a 10
-                    path test. Consequently, 
+    * Readability  - understanding an `HttpRoutes[IO]` with 1 path is easier to understand than 10 paths.
+    * Testability  - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than one with
+                     10 path test.
+
+Overall, building separate, small `HttpRoutes[IO]` produces code that's easier to maintain. Otherwise, the risk exists,
+which I've observed (and been guilty of), of teams building bad habits of just always adding to an existing `HttpRoutes[IO]`.

@@ -15,6 +15,27 @@ Next, I earned my Masters of Engineering in Networking from University of Pennsy
 In 2017 I spoke at NEScala, [Property-based Testing with ScalaCheck by Example](https://www.youtube.com/watch?v=7xUGBreqpnA).
 In2020, I gave a talk at NEScala, [1000+ Compile-time Errors Later and Running Smoothly in Prod](https://www.youtube.com/watch?v=hXQJChR2ii0&t=5s).
 
+Between Jan-2019 and April-2021 my role was Technical Lead. Essentially my role consisted of:
+    * 70% heads-down time (coding + problem solving)
+    * 20% pairing (coding or collaborating) with my teammates
+    * 10% communicating with management and other teamms
+
+Having worked in that role, I've come to appreciate the importance of team maintainability. A team should own a code-base,
+not an individual. A team is on-call, not an individual. The latter does not scale. From the ~15 or so http4s web application
+repositories that I either built or maintained professionally, I firmly believe that significant differences across repositories
+is a liability. To clarify, I've worked in code-bases ranging from "tagless final", i.e. programming to an `F[_]` interface,
+`EitherT`-based, as well as `Kleisli` everywhere.
+
+Given that I strongly prefer standardization, let me acknowledge the importance of adaptability and creativity that
+Software Engineers savor. Although I favor standardization, I fully understand that standing still is not an option. It's
+critical to improve the code-base based on the team's experience and future maintenance. Given that Software Engineering
+is both an Art and Science, clearly Engineers desire to express themselves via their craft, code. So, in my experience,
+if my teammate wanted to introduce a significant change to the code-base, it was responsibility of that teammate, if necessary,
+to educate the team on the benefits.
+
+In short, my motivation for writing this book was to share my opinions on how to build team-owned and maintained
+code-bases.
+
 I live in Miami, Florida.
 
 ## Intended Audience
