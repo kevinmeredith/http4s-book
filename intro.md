@@ -15,7 +15,7 @@ Next, I earned my Masters of Engineering in Networking from University of Pennsy
 In 2017 I spoke at NEScala, [Property-based Testing with ScalaCheck by Example](https://www.youtube.com/watch?v=7xUGBreqpnA).
 In2020, I gave a talk at NEScala, []1000+ Compile-time Errors Later and Running Smoothly in Prod](https://www.youtube.com/watch?v=hXQJChR2ii0&t=5s).
 
-I work remotely in Miami, FL.
+I live in Miami, FL.
 
 ## Intended Audience
 
