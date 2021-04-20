@@ -1,12 +1,12 @@
 # 1. What is `http4s`?
 
-The library's [docs](https://http4s.org/v0.21/service/) begin its discussions of a Web Service with:
+The library's [docs](https://http4s.org/v0.21/service/) begins its introduction of a Web Service with:
 
-> An HttpRoutes[F] is a simple alias for Kleisli[OptionT[F, *], Request, Response]. If that’s meaningful to you,
+> An HttpRoutes[F] is a simple alias for Kleisli[OptionT[IO, *], Request, Response]. If that’s meaningful to you,
 > great. If not, don’t panic: Kleisli is just a convenient wrapper around a Request => F[Response], and F is an
 > effectful operation.
 
-A well-known Scala/FP Developer critically commented on [Twitter](https://twitter.com/hmemcpy/status/1215198123502571521):
+A Scala/FP Developer critically commented on [Twitter](https://twitter.com/hmemcpy/status/1215198123502571521):
 
 > This does not belong anywhere near getting started.
 
@@ -15,17 +15,17 @@ I can see the author's point, however let's walk through this explanation in-dep
 [cats](https://github.com/typelevel/cats) documents [Kleisli](https://typelevel.org/cats/datatypes/kleisli.html), [OptionT](https://typelevel.org/cats/datatypes/optiont.html),
 and many other concepts.
 
-Roughly speaking, the power and simplicity of that type is composition. An entire web service consists of one or more `HttpRoutes[F]`.
+Roughly speaking, the power and simplicity of that complex type is composition. An entire web service consists of one or more `HttpRoutes[F]`.
 
-Let's break down `HttpRoutes[IO]`. Recall it's a type alias for `Kleisli[OptionT[F, *], Request, Response]`. It's effectively
-a function: `Request[F] => OptionT[F, Response[F]]`.
+Let's break down `HttpRoutes[IO]`. Recall it's a type alias for `Kleisli[OptionT[IO, *], Request[IO], Response[IO]]`. It's effectively
+a function: `Request[IO] => OptionT[IO, Response[IO]]`.
 
-So, for a given `Request[F]`, it's applied to an `Kleisli[OptionT[F, *], Request, Response]` to return a `OptionT[F, Response[F]]`.
+So, for a given `Request[IO]`, it's applied to an `Kleisli[OptionT[IO, *], Request[IO], Response[IO]]` to return a `OptionT[IO, Response[IO]]`.
 
-Note the optionality, namely `OptionT[F, *]` since the given `Request[F]` may not apply to the `HttpRoutes[F]`, i.e. the
-route may not actually handle the given request.
+Note the optionality, namely `OptionT[IO, *]`, since the given `Request[IO]` may not apply to the `HttpRoutes[F]`. In other
+words the route may not actually handle the given request, i.e. the `Request[IO]` may pass through it.
 
-The following examples show the evaluation of supplying a `Request[IO]` to ``
+The following examples show the evaluation of supplying a `Request[IO]` to a `OptionT[IO, Response[IO]]`
 
 ```scala
 sbt:http4s-book> console
@@ -78,7 +78,7 @@ scala> val barService: HttpRoutes[IO] = HttpRoutes.of[IO] {
      | }
 barService: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(org.http4s.HttpRoutes$$$Lambda$4760/1573956710@60088dfe)
 
-// As the http4s' docs note, it's necessary to use the '-Ypartial-unification scalac option when using `<+>`
+// As the http4s' docs note, it's necessary to use the '-Ypartial-unification' scalac option when using `<+>`
 scala> val combined: HttpRoutes[IO] = fooService <+> barService
 combined: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(cats.data.KleisliSemigroupK$$Lambda$4828/455661998@2dc11b92)
 

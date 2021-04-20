@@ -1,21 +1,21 @@
 # Introduction
 
-I'm Kevin Meredith. Since August-2013 I've worked professionally in Scala.
+Hi - I'm Kevin Meredith. Since August-2013 I've worked professionally in Scala.
 
-Beginning in Feb-2017, I joined a company to write code in Scala in a pure functional programming way. During that time-frame,
-I have built and maintained in production at least six http4s web services. In addition, have maintained, at least five
+Beginning in Feb-2017, I joined a company to write production code in Scala in Pure Functional Programming (FP) in Scala. During that time-frame,
+I have built and maintained in production close to a dozen http4s web services. In addition, I have maintained, five
 other web services. During this time, I've used cats, scalaz, scalaz-concurrent, doobie, cats-effect, fs2, circe, argonaut,
 refined, scalacheck, specs2 and scalatest libraries when building these production-deployed web services.
 
-Prior to my current pure FP in Scala job, I have built web services using Jersey, Play, Lift, Hibernate, Akka and Spring.
+Prior to my current pure FP in Scala job, I have built web services using Jersey (Java), Play, Lift, Hibernate, Akka and Spring.
 
 Born and raised in Pennsylvania, I completed my Bachelor's of Science in Computer Engineering from Villanova University.
 Next, I earned my Masters of Engineering in Networking from University of Pennsylvania while working full time.
 
 In 2017 I spoke at NEScala, [Property-based Testing with ScalaCheck by Example](https://www.youtube.com/watch?v=7xUGBreqpnA).
-In2020, I gave a talk at NEScala, []1000+ Compile-time Errors Later and Running Smoothly in Prod](https://www.youtube.com/watch?v=hXQJChR2ii0&t=5s).
+In2020, I gave a talk at NEScala, [1000+ Compile-time Errors Later and Running Smoothly in Prod](https://www.youtube.com/watch?v=hXQJChR2ii0&t=5s).
 
-I live in Miami, FL.
+I live in Miami, Florida.
 
 ## Intended Audience
 
