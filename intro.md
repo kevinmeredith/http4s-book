@@ -27,14 +27,11 @@ is a liability. To clarify, I've worked in code-bases ranging from "tagless fina
 `EitherT`-based, as well as `Kleisli` everywhere.
 
 Given that I strongly prefer standardization, let me acknowledge the importance of adaptability and creativity that
-Software Engineers savor. Although I favor standardization, I fully understand that standing still is not an option. It's
+Software Engineers savor. Although I favor standardization, I fully understand that standing still or rotting is not an option. It's
 critical to improve the code-base based on the team's experience and future maintenance. Given that Software Engineering
 is both an Art and Science, clearly Engineers desire to express themselves via their craft, code. So, in my experience,
-if my teammate wanted to introduce a significant change to the code-base, it was responsibility of that teammate, if necessary,
-to educate the team on the benefits.
-
-In short, my motivation for writing this book was to share my opinions on how to build team-owned and maintained
-code-bases.
+if my teammate wanted to introduce a significant change to the code-base, it was welcomed, but also responsibility of
+that teammate to educate the team on the benefits.
 
 I live in Miami, Florida.
 
@@ -56,3 +53,5 @@ value out of pure FP and http4s.
 [Referential Transparency](https://www.reddit.com/r/scala/comments/3zofjl/why_is_future_totally_unusable/cyns21h/) and
 types, especially effectful ones, are the reason.
 
+In short, my motivation for writing this book is to share my opinions on how to build simple, team-owned and maintained
+code-bases.

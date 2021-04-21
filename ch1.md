@@ -1,4 +1,6 @@
-# 1. What is `http4s`?
+# Chapter 1. What is `http4s`?
+
+It's a Scala library for building web servers and clients with pure functional programming.
 
 The library's [docs](https://http4s.org/v0.21/service/) begins its introduction of a Web Service with:
 
@@ -128,8 +130,9 @@ to be better than building large `HttpRoutes[IO]`. By "large" and "small," I'm t
 Building separate, small `HttpRoutes[IO]`, offers the following benefits:
 
     * Readability  - understanding an `HttpRoutes[IO]` with 1 path is easier to understand than 10 paths.
-    * Testability  - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than one with
-                     10 path test.
+    * Testability  - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than one
+                     with 10 path test.
 
 Overall, building separate, small `HttpRoutes[IO]` produces code that's easier to maintain. Otherwise, the risk exists,
-which I've observed (and been guilty of), of teams building bad habits of just always adding to an existing `HttpRoutes[IO]`.
+which I've encountered first-hand and been guilty of, of teams building bad habits of just always adding to
+an existing `HttpRoutes[IO]`. This approach is risky since it likely will reduce understandability and testability.

@@ -1,0 +1,15 @@
+@startuml
+
+actor client
+participant service
+participant other_service
+
+client -> service : http request
+service -> other_service : http request
+other_service -> other_service : process request
+other_service -> service : http response (w/ JSON payload)
+service -> service : process response
+service -> client : http response
+
+@enduml
+
