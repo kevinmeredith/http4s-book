@@ -80,69 +80,17 @@ object Notifications {
 }
 ```
 
-So, the `trait` represents the interface, whereas `Notifications#impl` defines an interpretation of it.is
+So, the `trait` represents the interface, whereas `Notifications#impl` defines an implementation of it.
 
 Alternatively, in my professional experience using this approach in production, I've heard the `trait` referred to as the
-"algebra," and the implementation is the "interpreter."
+"algebra," and the implementation is the "interpreter." In my opinion, the language of "interface" and "implementation"
+since more Software Engineers will grasp those terms over the "algebra" and interpreter word choice. Also, using the former
+terminology, in no way, lessens their purpose.
 
 Let's return to the `GET /messages?topic={name}` API for which we're going to build an `http4s`'s Client.
 
 ```scala
-import cats._
-import cats.effect.IO
-import cats.implicits._
-import io.circe._
-import org.http4s.client.{ Client, UnexpectedStatus }
-import org.http4s._
-import org.http4s.circe._
-import java.time.Instant
-import java.time.DateTimeException
-import java.util.UUID
-import scala.util.control.NoStackTrace
 
-trait Messages[F[_]] {
-    def getMessages(topicName: String): F[List[Messages.Message]]
-};object Messages {
-    final case class Message(value: String, timestamp: Instant)
-    object Message {
-        implicit val decoder: Decoder[Message] = new Decoder[Message] {
-          final def apply(c: HCursor): Decoder.Result[Message] =
-            for {
-              value <- c.downField("value").as[String]
-              timestampLong <- c.downField("timestamp").as[Long]
-              timestamp <- Either.catchOnly[DateTimeException](Instant.ofEpochMilli(timestampLong)).leftMap { t: Throwable =>
-                Left(???)
-              }
-            } yield {
-               Message(value, timestamp)
-            }
-        }
-    }
-
-    private final case class GetMessagesError(msg: String, t: Throwable)
-      extends RuntimeException(msg, t)
-      with NoStackTrace
-
-    def impl(c: Client[IO], uri: Uri): Messages[IO] = new Messages[IO] {
-        def getMessages(topicName: String): IO[List[Messages.Message]] = {
-            val u: Uri = (uri / "messages").withQueryParam("topicName", topicName)
-
-            val r: Request[IO] = Request[IO](method = Method.GET, uri = u)
-
-            val messages: IO[List[Message]] =
-                c.run(r)
-                 .use { resp: Response[IO] =>
-                    resp match {
-                        case Status.Ok(body) => body.as[List[Message]]
-                        case non200Status    => IO.raiseError(new GetMessagesError("non-200 response", UnexpectedStatus(non200Status)))
-                    }
-                }
-
-            messages.adaptError {
-                case e @ GetMessagesError(_, _) => e
-                case other                      => new GetMessagesError("unexpected error", other)
-            }
-        }
-    }
-}
 ```
+
+The
