@@ -40,7 +40,7 @@ object Messages {
   // model data type, easier.
   private final case class MessageDTO(value: String, timestamp: Long)
   private object MessageDTO {
-    // Define a Decoder, i.e. a typeclass that provides a method
+    // Define a circe Decoder, a typeclass that provides a method
     // to go from JSON => A.
     implicit val decoder: Decoder[MessageDTO] = new Decoder[MessageDTO] {
       final def apply(c: HCursor): Decoder.Result[MessageDTO] =
@@ -58,21 +58,31 @@ object Messages {
   // know what failed and why. To the business, clear error reporting is a competitive
   // advantage since Software Engineers can more promptly address errors if their cause
   // is explicitly captured, such as "GetMessagesError."
+  // In my own experience in production, a logger will be responsible for
+  // logging the "errorMessage," as well as the stack trace of the "t" Throwable.
   private final case class GetMessagesError(errorMessage: String, t: Throwable)
     extends RuntimeException(errorMessage, t)
       with NoStackTrace
 
+  // Define an implementation for Messages[F]
+  // Note that there's a typeclass constraint of "F[_] : Sync." Read this as
+  // the F, whose kind is * -> *, must have a cats.effect.Sync[F] instance in scope.
+  // The purpose of the "c," Client[F], is to make an HTTP Request to the 3rd party API.
+  // Finally, the "uri" type is needed as a URI is required for making an HTTP Request.
   def impl[F[_] : Sync](c: Client[F], uri: Uri): Messages[F] = new Messages[F] {
     def getMessages(topicName: String): F[List[Messages.Message]] = {
+      // Create a URI with a path of /messages and an added query parameter
       val u: Uri = (uri / "messages").withQueryParam("topicName", topicName)
 
+      // Build the HTTP Request w/ a Method of GET and URI = the constructed one
       val r: Request[F] = Request[F](method = Method.GET, uri = u)
 
       val messages: F[List[Message]] =
-        c.run(r)
-          .use { resp: Response[F] =>
-            resp match {
-              case Status.Ok(body) =>
+        c.run(r)                       // Call Client#run, which returns a Resource[F, Response[F]]
+          .use { resp: Response[F] =>  // Invoke the "use" method of Resource: Response[F] => F[List[Message]].
+            resp match {               // Pattern match on the Response[F] to inspect, in particular, its status.
+              case Status.Ok(body) =>  // This pattern match applies to an HTTP-200 response. The "body" variable
+                                       // has a type of "Response[F]."
                 val dtos: F[List[MessageDTO]] =
                   body.as[List[MessageDTO]]
                 dtos
