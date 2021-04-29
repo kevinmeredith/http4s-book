@@ -83,16 +83,42 @@ object Messages {
             resp match {               // Pattern match on the Response[F] to inspect, in particular, its status.
               case Status.Ok(body) =>  // This pattern match applies to an HTTP-200 response. The "body" variable
                                        // has a type of "Response[F]."
+                // Attempt to decode the "body," whose type is "Response[F]," into
+                // a "List[MessageDTO]".
+                // Note that "org.http4s.Response" inherits this method from "org.http4s.Media:"
+                //  > final def as[A](implicit F: MonadThrow[F], decoder: EntityDecoder[F, A]): F[A]
+                // "MonadThrow[F]" is a type alias for "MonadError[F, Throwable]."
+                // cats's docs explain MonadError:
+                //  > allows you to raise and or handle an error value.
+                // In this case, the "MonadError[F, Throwable]" allows for raising or handling Throwable's.
+                // http4s's code docs explain:
+                //  > A type that can be used to decode a Message EntityDecoder is used to attempt to decode
+                //  > a Message returning the entire resulting A.
+                // In this case, org.http4s.circe.CirceEntityDecoder.circeEntityDecoder creates the
+                // "EntityDecoder[F, MessageDTO]." Its type signature is:
+                //  > implicit def circeEntityDecoder[F[_]: Sync, A: Decoder]: EntityDecoder[F, A]
+                // So, that type signature states, given evidence of Sync[F] and Decoder[A], produce an
+                // "EntityDecoder[F, A]." This code requires a "Sync[F]" per Messages#impl's implicits.
+                // Also, there's an implicit "Decoder[MessageDTO]" defined in the "MessageDTO" object.
                 val dtos: F[List[MessageDTO]] =
                   body.as[List[MessageDTO]]
-                dtos
-                  .flatMap { _dtos: List[MessageDTO] =>
-                    Traverse[List]
-                      .traverse[F, MessageDTO, Message](_dtos) { dto: MessageDTO =>
-                        val m: Either[DateTimeException, Message] = Message.from(dto)
-                        Sync[F].fromEither(m)
+
+                // At this point, the code has an "F[List[MessageDTO]]." It's then necessary
+                // to convert each "MessageDTO" into a "Message," i.e. the domain model representation
+                // of a message. Recall that "MessageDTO" is just a private model that's used strictly
+                // for decoding JSON into a type.
+                val messages: F[List[Message]] =
+                    dtos
+                      .flatMap { _dtos: List[MessageDTO] => // List[MessageDTO] => F[List[Message]]
+                        Traverse[List]                      // Summon an instance of cats.Traverse
+                          .traverse[F, MessageDTO, Message](_dtos) {
+                            dto: MessageDTO =>              // MessageDTO => F[Message]
+                                val m: Either[DateTimeException, Message] = Message.from(dto)
+                                Sync[F].fromEither(m)
+                              }
                       }
-                  }
+
+                messages
                   .adaptError {
                     case e => GetMessagesError("200 response error", e)
                   }
