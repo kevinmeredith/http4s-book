@@ -108,7 +108,8 @@ object Messages {
                 // of a message. Recall that "MessageDTO" is just a private model that's used strictly
                 // for decoding JSON into a type.
                 val messages: F[List[Message]] =
-                    dtos
+                    dtos                                    // To go from F[List[MessageDTO]] => F[List[Message]],
+                                                            // we'll use cats.FlatMap[F]#flatMap: F[A] => (A => F[B]) => F[B]
                       .flatMap { _dtos: List[MessageDTO] => // List[MessageDTO] => F[List[Message]]
                         Traverse[List]                      // Summon an instance of cats.Traverse
                           .traverse[F, MessageDTO, Message](_dtos) {
@@ -117,11 +118,7 @@ object Messages {
                                 Sync[F].fromEither(m)
                               }
                       }
-
                 messages
-                  .adaptError {
-                    case e => GetMessagesError("200 response error", e)
-                  }
               case non200Status => Sync[F].raiseError(
                 GetMessagesError(
                   "non-200 response",
@@ -131,10 +128,25 @@ object Messages {
             }
           }
 
-      messages.adaptError {
-        case e @ GetMessagesError(_, _) => e
-        case other                      => GetMessagesError("unexpected error", other)
-      }
+      // There are multiple failures that could occur when making an HTTP Request with org.http4s.client.Client:
+      // (1) received non HTTP-200 response
+      // (2) received HTTP-200 but failed to decode the HTTP Response's payload as JSON
+      // (3) received HTTP-200 but failed to decode the HTTP Response's JSON payload as a 'MessageDTO'
+      // (4) received HTTP-200 but at least one of the MessageDTO's includes an invalid 'Long' timestamp
+      // (5) client times out, i.e. clients halts/fails due to an exceeded timer waiting for a response from the client
+      // So far this code handles (1) by wrapping it in a GetMessagesError.
+      // When reviewing error messages in the logs, it's valuable to know exactly why an error occurred. In
+      // this case, it's important to know that as 'GetMessagesError' occurred, including the message and underlying
+      // stack trace.
+      // As a result, let's use MonadError[F, Throwable]#adaptError:
+      // > override def adaptError[A](fa: F[A])(pf: PartialFunction[E, E]): F[A] =
+      // In this code, the error "E" type is Throwable, and the "A" is "List[Message]."
+      // Note that "adaptError" is an extension method from cats.syntax.MonadErrorOps.
+      messages
+        .adaptError {
+          case e @ GetMessagesError(_, _) => e // If a GetMessagesError's already been raised, keep it as the error type
+          case other                      => GetMessagesError("unexpected error", other) 
+        }
     }
   }
 }
