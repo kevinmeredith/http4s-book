@@ -93,4 +93,8 @@ Let's return to the `GET /messages?topic={name}` API for which we're going to bu
 
 ```
 
-The
+Finally, let's write a test for this interface's implementation.
+
+```scala
+
+```

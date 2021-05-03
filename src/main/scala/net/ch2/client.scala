@@ -11,7 +11,7 @@ import java.time.Instant
 import java.time.DateTimeException
 import scala.util.control.NoStackTrace
 
-// The `Messages` algebra includes a single method to get messages.
+// The `Messages` algebr  a includes a single method to get messages.
 trait Messages[F[_]] {
   def getMessages(topicName: String): F[List[Messages.Message]]
 }
@@ -60,6 +60,11 @@ object Messages {
   // is explicitly captured, such as "GetMessagesError."
   // In my own experience in production, a logger will be responsible for
   // logging the "errorMessage," as well as the stack trace of the "t" Throwable.
+  // In addition, note that "GetMessagesError" mixes in scala.control.util.NoStackTrace."
+  // It does that since the stack trace of "GetMessagesError" is not meaningful.
+  // Finally, note that it's "private." If this error occurs, there will be no
+  // way to meaningfully recover from it. Consequently, in the interest of minimizing
+  // the surface area of this API, let's remove its accessibility to all but to "object Messages."
   private final case class GetMessagesError(errorMessage: String, t: Throwable)
     extends RuntimeException(errorMessage, t)
       with NoStackTrace
@@ -134,7 +139,7 @@ object Messages {
       // (3) received HTTP-200 but failed to decode the HTTP Response's JSON payload as a 'MessageDTO'
       // (4) received HTTP-200 but at least one of the MessageDTO's includes an invalid 'Long' timestamp
       // (5) client times out, i.e. clients halts/fails due to an exceeded timer waiting for a response from the client
-      // So far this code handles (1) by wrapping it in a GetMessagesError.
+      // So far this code only handles error case (1) by wrapping it in a GetMessagesError.
       // When reviewing error messages in the logs, it's valuable to know exactly why an error occurred. In
       // this case, it's important to know that as 'GetMessagesError' occurred, including the message and underlying
       // stack trace.
@@ -144,8 +149,12 @@ object Messages {
       // Note that "adaptError" is an extension method from cats.syntax.MonadErrorOps.
       messages
         .adaptError {
-          case e @ GetMessagesError(_, _) => e // If a GetMessagesError's already been raised, keep it as the error type
-          case other                      => GetMessagesError("unexpected error", other) 
+          case e @ GetMessagesError(_, _) =>
+            e // If a GetMessagesError's already been raised, keep it as the error type.
+          case other                      =>
+            GetMessagesError("unexpected error", other) // If we did return an existing raised "GetMessagesError," we
+                                                        // would've produced a redundant
+                                                        // GetMessagesError("unexpected error", GetMessagesError(..., ...))
         }
     }
   }
