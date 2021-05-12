@@ -4,15 +4,14 @@ import cats.effect.IO
 import cats.implicits._
 import io.circe.Json
 import io.circe.syntax._
-
-import java.time.{Clock, Instant}
-import munit._
+import java.time.Instant
+import munit.CatsEffectSuite
 import org.http4s._
 import org.http4s.circe.jsonEncoder
 import org.http4s.implicits._
 import org.http4s.client.Client
 
-object clientspec extends FunSuite {
+final class clientspec extends CatsEffectSuite {
 
   // Build a stubbed implementation of Messages[IO] to help with testing
   private def stubbedAPIClient(responseStatus: Status, responsePayload: Json): Client[IO] =
@@ -28,27 +27,35 @@ object clientspec extends FunSuite {
 
   test("return List of messages for HTTP-200 w/ well-formed payload") {
 
-    val timestamp: Instant = ???
+    val timestamp: Instant = Instant.now()
 
-    val result: IO[List[Messages.Message]] =
-      for {
-        singleMessage = Json.obj(
-          "value"     := "hello world",
-          "timestamp" := timestamp.toEpochMilli
-        )
-        responsePayload = Json.arr(singleMessage)
-        testClient = stubbedAPIClient(Status.Ok, responsePayload)
-        messagesImpl = Messages.impl[IO](
-          testClient,
-          TestUri
-        )
-        messages <- messagesImpl.getMessages("does-not-matter")
-      } yield messages
+    val singleMessage = Json.obj(
+      "value"     := "hello world",
+      "timestamp" := timestamp.toEpochMilli
+    )
+
+    val responsePayload = Json.arr(singleMessage)
+
+    val testClient: Client[IO] = stubbedAPIClient(Status.Ok, responsePayload)
+
+    val messagesImpl = Messages.impl[IO](
+      testClient,
+      TestUri
+    )
+
+    val actual: IO[List[Messages.Message]] =
+      messagesImpl.getMessages("test-input-that-does-not-matter")
 
     val expected: List[Messages.Message] =
-      List.M
+      List(
+        Messages.Message(
+          "hello world",
+          timestamp
+        )
+      )
 
-    assertEquals(obtained, expected)
-  }
+    actual.map { _actual: List[Messages.Message] =>
+      assertEquals(_actual, expected)
+    }
   }
 }
