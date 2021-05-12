@@ -65,7 +65,7 @@ object Messages {
   // Finally, note that it's "private." If this error occurs, there will be no
   // way to meaningfully recover from it. Consequently, in the interest of minimizing
   // the surface area of this API, let's remove its accessibility to all but to "object Messages."
-  private final case class GetMessagesError(errorMessage: String, t: Throwable)
+  final case class GetMessagesError(errorMessage: String, t: Throwable)
     extends RuntimeException(errorMessage, t)
       with NoStackTrace
 
