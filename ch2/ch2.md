@@ -49,7 +49,7 @@ Before we dive into the `http4s` `Client[F]` example, let's discuss "Tagless Fin
 ## Tagless Final
 
 A well-known principle of Software Engineering is "program to an interface, not implementation." This point is important
-since programming to an interface results in more maintainable and testable. The "Tagless Final" approach has the same aim.
+since programming to an interface results in more maintainable and testable code. The "Tagless Final" approach has the same aim.
 
 In short, this approach's `interface` consists of using a Scala `trait` with a type parameter having a [kind](https://eed3si9n.com/herding-cats/Kinds.html)
  of `* -> *`.
@@ -98,3 +98,11 @@ Finally, let's write a test for this interface's implementation.
 ```scala
 
 ```
+
+### Effect Types for Testing?
+
+One argument of the Tagless Final approach, which provides a polymorphic `F[_]` for the effect type, is that it enables
+using a type other than `cats.effect.IO` for testing. Although this is true, in my 4 years of production and professional
+experience, I've 95% of the time used `cats.effect.IO`. It's a natural choice since that's what will be used in the
+real-world instance of the application. An additional argument for using `cats.effect.IO` as the effect type is
+https://github.com/typelevel/munit-cats-effect. That library enables tests that compare values of type `IO[A]`. `

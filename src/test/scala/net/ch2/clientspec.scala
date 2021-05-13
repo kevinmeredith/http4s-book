@@ -13,18 +13,40 @@ import org.http4s.circe.jsonEncoder
 import org.http4s.implicits._
 import org.http4s.client.Client
 
+// The purpose of this spec is to write a unit test for the
+// net.ch2.Messages interface.
+// Note that this class extends munit.CatsEffectSuite.
+// It's a Typelevel library for testing results of type cats.effect.IO[A].
+// See https://github.com/typelevel/munit-cats-effect for more details.
 final class clientspec extends CatsEffectSuite {
 
-  // Build a fake or stub 
-  private def stubbedAPIClient(responseStatus: Status, responsePayload: Json): Client[IO] =
+  // Build a fake or stub org.http4s.client.Client[IO].
+  // The function signature, (org.http4s.Status, io.circe.Json) => Client[IO], suggests
+  // that the returned Client will, for any HTTP Request, produce an
+  // HTTP Response with the input Response Status and Payload (JSON).
+  // Why are we building this Client[IO]? It's necessary to supply one to
+  // Messages.impl in order to build a Messages[IO].
+  private def stubbedAPIClient(responseStatus: Status, responsePayload: Json): Client[IO] = {
+    // http4s provides a handy function on Client, fromHtppApp. Its function signature is:
+    //   def fromHttpApp[F[_]](app: HttpApp[F])(implicit F: Sync[F]): Client[F] =
+    // The source code notes:
+    // > Useful for generating pre-determined responses for requests in testing.
+    // This clearly applies to this test case.
     Client.fromHttpApp[IO](
+      // Finally, let's pass an HttpApp[IO] that returns an HTTP Response with the given input
+      // Status and JSON payload.
       HttpApp.pure[IO](
         Response[IO](
           status = responseStatus
         ).withEntity[Json](responsePayload)
       )
     )
+  }
 
+  // Messages.impl requires a URI, namely the URI that will be supplied
+  // to the other parameter, the Client[IO], to make an HTTP Request.
+  // Since we'll be passing a fake/stub Client[IO], this input Uri is meaningless
+  // and won't be used. As a result, let's build one as so.
   private val TestUri: Uri = uri"www.not-used-as-client-is-stubbed.com"
 
   test("return List of messages for HTTP-200 w/ well-formed payload") {
@@ -61,7 +83,7 @@ final class clientspec extends CatsEffectSuite {
       assertEquals(_actual, expected)
     }
   }
-  test("raise an error for a malformed payload") {
+  test("raise an error for a malformed payload ('value'' is not a String and 'timestamp' is not valid either'") {
     val invalidMessageValue: Int = 1234
     val invalidTimestamp: String = "oops-not-an-epoch-milli"
 
