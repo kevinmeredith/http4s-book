@@ -1,5 +1,10 @@
 # Chapter 2. Building an HTTP Client to Consume from an API
 
+This chapter covers the following topics:
+ * Definition of `org.http4s.client.Client[F]`
+ * Builing an HTTP Client Example
+ * Testing Example
+
 ## Definition
 
 The `http4s`'s [docs](https://github.com/http4s/http4s/blob/v0.21.22/client/src/main/scala/org/http4s/client/Client.scala#L31) describe a
@@ -24,9 +29,12 @@ resources for the `Response[F]`.
 
 Let's look at an example to show how the `http4s` `Client[F]` API works.
 
-## Example
+## Builing an HTTP Client Example
 
-## Testing
+```scala
+```
+
+## Testing Example
 
 When I first used `http4s` professionally, I had come from building web applications using the [Play Framework](https://www.playframework.com/). The
 simplicity of testing `http4s`'s `Client[F]`'s attracted me further to this HTTP library.
@@ -46,7 +54,7 @@ Example:
 
 Before we dive into the `http4s` `Client[F]` example, let's discuss "Tagless Final" in Scala.
 
-## Tagless Final
+### Tagless Final
 
 A well-known principle of Software Engineering is "program to an interface, not implementation." This point is important
 since programming to an interface results in more maintainable and testable code. The "Tagless Final" approach has the same aim.
@@ -102,7 +110,8 @@ Finally, let's write a test for this interface's implementation.
 ### Effect Types for Testing?
 
 One argument of the Tagless Final approach, which provides a polymorphic `F[_]` for the effect type, is that it enables
-using a type other than `cats.effect.IO` for testing. Although this is true, in my 4 years of production and professional
-experience, I've 95% of the time used `cats.effect.IO`. It's a natural choice since that's what will be used in the
-real-world instance of the application. An additional argument for using `cats.effect.IO` as the effect type is
-https://github.com/typelevel/munit-cats-effect. That library enables tests that compare values of type `IO[A]`. `
+using a type other than `cats.effect.IO` for testing. Although this is true, in my 4 years of professional
+experience building web services in production, I've 99% of the time used `cats.effect.IO`. It's a natural choice since
+that's what will be used in the real-world instance of the application. An additional argument for using `cats.effect.IO`
+as the effect type is https://github.com/typelevel/munit-cats-effect. That library enables building tests that compare
+values of type `IO[A]`. `

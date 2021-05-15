@@ -1,5 +1,11 @@
 # Chapter 1. What is `http4s`?
 
+This chapter covers the following topics:
+ * Introduction to http4s and `org.http4s.HttpRoutes[F]`
+ * HttpRoutes[F] Example
+
+## Introduction to http4s and `org.http4s.HttpRoutes[F]`
+
 It's a Scala library for building web servers and clients with pure functional programming.
 
 The library's [docs](https://http4s.org/v0.21/service/) begins its introduction of a Web Service with:
@@ -25,6 +31,8 @@ speaks to the optional HTTP Response.
 
 Note the optionality, namely `OptionT[IO, Response[IO]]`, since the given `Request[IO]` may not apply to or match the
 `HttpRoutes[F]`. In other words the route may not actually handle the given request, hence the optionality.
+
+## HttpRoutes[F] Example
 
 The following examples show the evaluation of supplying a `Request[IO]` to a `OptionT[IO, Response[IO]]`. In this
 example, observe that non-empty response will be returned since the `HttpRoutes[IO]` handles the `Request[IO]`, namely
