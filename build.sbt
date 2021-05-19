@@ -15,3 +15,4 @@ libraryDependencies ++= Seq(
 
 scalacOptions ++= Seq("-Ypartial-unification")
 
+addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.3" cross CrossVersion.full)
