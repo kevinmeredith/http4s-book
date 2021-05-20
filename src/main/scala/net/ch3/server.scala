@@ -7,9 +7,10 @@ import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json}
 import io.circe.syntax._
 import org.http4s._
 import org.http4s.circe.CirceEntityEncoder.circeEntityEncoder
+import org.http4s.circe.CirceEntityDecoder.circeEntityDecoder
 import org.http4s.dsl.Http4sDsl
 
-import java.time.{Instant, ZoneId, ZoneOffset}
+import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import java.time.format.{DateTimeFormatter, DateTimeParseException}
 import java.util.UUID
 import net.ch3.models.{AuthToken, UserId}
@@ -25,7 +26,7 @@ object server {
     * Responses:
         * HTTP-200 Retrieved all of the user's message - { "content" : String, "timestamp" : String ISO861 }
         * HTTP-500 Something went wrong on server
-* POST /{userId}/messages - create a message for a given User
+  * POST /{userId}/messages - create a message for a given User
     * Must include Authorization header whose value identifies the User
     * Responses:
         * HTTP-200 Created the message
@@ -37,32 +38,11 @@ object server {
   object Messages {
     final case class Message(content: String, timestamp: Instant)
     object Message {
-
-      // https://stackoverflow.com/a/27483371
-      private val format: DateTimeFormatter =
-        DateTimeFormatter
-          .ISO_LOCAL_DATE_TIME
-          .withZone(
-            ZoneId.from(ZoneOffset.UTC)
-          )
-
-      implicit val decoder: Decoder[Message] = new Decoder[Message] {
-        override def apply(c: HCursor): Result[Message] =
-          for {
-            content <- c.downField("content").as[String]
-            timestampStr <- c.downField("timestamp").as[String]
-            timestamp = Either.catchOnly[DateTimeParseException](format.parse(timestampStr))
-            ts <- timestamp.leftMap { t: Throwable =>
-              DecodingFailure(t.getMessage, c.history)
-            }
-          } yield Message(content, Instant.from(ts))
-      }
-
       implicit val encoder: Encoder[Message] = new Encoder[Message] {
         override def apply(a: Message): Json =
           Json.obj(
             "content"   := a.content,
-            "timestamp" := format.format(a.timestamp)
+            "timestamp" := a.timestamp.toEpochMilli
           )
       }
     }
@@ -82,6 +62,17 @@ object server {
     case object MissingAuthorizationHeader extends ApiError
     final case class InvalidAuthorizationType(authScheme: AuthScheme) extends ApiError
     case object IncorrectAuthToken extends ApiError
+    case object InvalidCreateMessageRequestPayload extends ApiError
+  }
+
+  final case class CreateMessageRequest(content: String)
+  object CreateMessageRequest {
+    implicit val decoder: Decoder[CreateMessageRequest] = new Decoder[CreateMessageRequest] {
+      override def apply(c: HCursor): Result[CreateMessageRequest] =
+        c.downField("content")
+          .as[String]
+          .map{ str: String => CreateMessageRequest(str) }
+    }
   }
 
   def routes[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: AuthToken): HttpRoutes[F] = {
@@ -123,10 +114,12 @@ object server {
             if (authToken === trustedAuthToken) Sync[F].unit
             else Sync[F].raiseError(ApiError.IncorrectAuthToken)
           }
-          createRequest <- req.as[]
+          createMessageRequest <- req.as[CreateMessageRequest]
+            .adaptError { case _ => ApiError.InvalidCreateMessageRequestPayload }
+          now <- Sync[F].delay(Instant.now(Clock.systemUTC()))
+          message = Messages.Message(createMessageRequest.content, now)
+          _ <- Messages[F].create(userId, message)
         } yield Response[F](status = Status.Ok)
-
-
     }
   }
 
