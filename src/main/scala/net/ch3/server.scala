@@ -1,5 +1,6 @@
 package net.ch3
 
+import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
 import io.circe.Decoder.Result
@@ -75,7 +76,24 @@ object server {
     }
   }
 
-  def routes[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: AuthToken): HttpRoutes[F] = {
+  private def middleware[F[_] : Sync](routes: HttpRoutes[F]): HttpRoutes[F] =
+    HttpRoutes.apply { req: Request[F] =>
+      routes
+        .run(req)
+        .recover {
+          case apiError: ApiError => apiError match {
+            case ApiError.InvalidCreateMessageRequestPayload => Response[F](status = Status.BadRequest)
+            case ApiError.MissingAuthorizationHeader => Response[F](status = Status.Unauthorized)
+            case ApiError.IncorrectAuthToken => Response[F](status = Status.Unauthorized)
+            case ApiError.InvalidAuthorizationType(_) => Response[F](status = Status.Unauthorized)
+          }
+        }
+    }
+
+  def routes[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: AuthToken): HttpRoutes[F] =
+    middleware[F](routesHelper[F](trustedAuthToken))
+
+  private def routesHelper[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: AuthToken): HttpRoutes[F] = {
     val dsl: Http4sDsl[F] = implicitly[Http4sDsl[F]]
 
     import dsl._
@@ -95,7 +113,6 @@ object server {
           }
         }
       } yield authToken
-
 
     HttpRoutes.of[F] {
       case GET -> Root / UserId(userId) / "messages"  =>

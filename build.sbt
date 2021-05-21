@@ -1,6 +1,6 @@
 scalaVersion := "2.12.12"
 
-lazy val http4sVersion = "0.21.21"
+lazy val http4sVersion = "0.21.23"
 lazy val scalaMetaVersion = "0.7.25"
 lazy val catsEffectMUnitVersion = "1.0.0"
 
