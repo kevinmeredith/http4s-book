@@ -49,7 +49,7 @@ final class clientspec extends CatsEffectSuite {
   // and won't be used. As a result, let's build one as so.
   private val TestUri: Uri = uri"www.not-used-as-client-is-stubbed.com"
 
-  test("return List of messages for HTTP-200 w/ well-formed payload") {
+  test("return List of messages for HTTP-200 Response w/ well-formed payload") {
     val timestamp: Instant = Instant.EPOCH
 
     val messageValue: String = "hello world"

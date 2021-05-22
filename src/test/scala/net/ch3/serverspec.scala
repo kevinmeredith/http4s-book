@@ -6,7 +6,7 @@ import io.circe.syntax._
 import java.time.Instant
 import java.util.UUID
 import munit.CatsEffectSuite
-import net.ch3.models.{AuthToken, UserId}
+import net.ch3.models.{Secret, UserId}
 import net.ch3.server.Messages
 import org.http4s.HttpRoutes
 import org.http4s._
@@ -41,7 +41,7 @@ final class serverspec extends CatsEffectSuite {
     implicit val messagesImpl: Messages[IO] =
       mockMessagesImpl(IO.pure(messages), notUsed)
 
-    val trustedAuthToken: AuthToken = AuthToken("secret")
+    val trustedAuthToken: Secret = Secret("secret")
 
     val routes: HttpRoutes[IO] = server.routes[IO](trustedAuthToken)
 
@@ -67,11 +67,11 @@ final class serverspec extends CatsEffectSuite {
     }
   }
 
-  test("PUT /{userId}/messages returns a 401 with no Authorization Header") {
+  test("PUT /{userId}/messages returns a 401 for a request having no x-secret Header") {
     implicit val messagesImpl: Messages[IO] =
       mockMessagesImpl(notUsed, notUsed)
 
-    val trustedAuthToken: AuthToken = AuthToken("secret")
+    val trustedAuthToken: Secret = Secret("secret")
 
     val routes: HttpRoutes[IO] = server.routes[IO](trustedAuthToken)
 
@@ -88,6 +88,56 @@ final class serverspec extends CatsEffectSuite {
 
     result.map { s: Status =>
         assertEquals(s, Status.Unauthorized)
+    }
+  }
+
+  test("PUT /{userId}/messages returns a 401 for a request including a x-secret header with the wrong value") {
+    implicit val messagesImpl: Messages[IO] =
+      mockMessagesImpl(notUsed, notUsed)
+
+    val secret: Secret = Secret("secret")
+
+    val routes: HttpRoutes[IO] = server.routes[IO](secret)
+
+    val result: IO[Status] = for {
+      uuid <- IO.delay(UUID.randomUUID())
+      request =  Request[IO](
+        method = Method.POST,
+        uri = TestUri / uuid.toString / "messages"
+      ).withHeaders(Headers.of(Header("x-secret", "not-the-secret")))
+       .withEntity[Json](
+        Json.obj("content" := "a witty remark")
+      )
+      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+    } yield resp.status
+
+    result.map { s: Status =>
+      assertEquals(s, Status.Unauthorized)
+    }
+  }
+
+  test("PUT /{userId}/messages returns a 200") {
+    implicit val messagesImpl: Messages[IO] =
+      mockMessagesImpl(notUsed, IO.unit)
+
+    val secret: Secret = Secret("secret")
+
+    val routes: HttpRoutes[IO] = server.routes[IO](secret)
+
+    val result: IO[Status] = for {
+      uuid <- IO.delay(UUID.randomUUID())
+      request =  Request[IO](
+        method = Method.POST,
+        uri = TestUri / uuid.toString / "messages"
+      ).withHeaders(Headers.of(Header("x-secret", secret.value)))
+        .withEntity[Json](
+          Json.obj("content" := "a witty remark")
+        )
+      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+    } yield resp.status
+
+    result.map { s: Status =>
+      assertEquals(s, Status.Ok)
     }
   }
 

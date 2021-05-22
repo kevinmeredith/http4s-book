@@ -14,8 +14,9 @@ import org.http4s.dsl.Http4sDsl
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import java.time.format.{DateTimeFormatter, DateTimeParseException}
 import java.util.UUID
-import net.ch3.models.{AuthToken, UserId}
+import net.ch3.models.{Secret, UserId}
 import net.ch3.server.Messages
+import org.http4s.util.CaseInsensitiveString
 
 import scala.util.Try
 
@@ -28,7 +29,7 @@ object server {
         * HTTP-200 Retrieved all of the user's message - { "content" : String, "timestamp" : String ISO861 }
         * HTTP-500 Something went wrong on server
   * POST /{userId}/messages - create a message for a given User
-    * Must include Authorization header whose value identifies the User
+    * Must include x-secret header whose value equals the server's secret
     * Responses:
         * HTTP-200 Created the message
         * HTTP-401 Unauthorized (missing or invalid Authorization Header)
@@ -61,9 +62,8 @@ object server {
   sealed abstract class ApiError() extends RuntimeException
   object ApiError {
     case object MissingAuthorizationHeader extends ApiError
-    final case class InvalidAuthorizationType(authScheme: AuthScheme) extends ApiError
-    case object IncorrectAuthToken extends ApiError
     case object InvalidCreateMessageRequestPayload extends ApiError
+    case object IncorrectSecretHeaderValue extends ApiError
   }
 
   final case class CreateMessageRequest(content: String)
@@ -84,35 +84,28 @@ object server {
           case apiError: ApiError => apiError match {
             case ApiError.InvalidCreateMessageRequestPayload => Response[F](status = Status.BadRequest)
             case ApiError.MissingAuthorizationHeader => Response[F](status = Status.Unauthorized)
-            case ApiError.IncorrectAuthToken => Response[F](status = Status.Unauthorized)
-            case ApiError.InvalidAuthorizationType(_) => Response[F](status = Status.Unauthorized)
+            case ApiError.IncorrectSecretHeaderValue => Response[F](status = Status.Unauthorized)
           }
         }
     }
 
-  def routes[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: AuthToken): HttpRoutes[F] =
+  def routes[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: Secret): HttpRoutes[F] =
     middleware[F](routesHelper[F](trustedAuthToken))
 
-  private def routesHelper[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: AuthToken): HttpRoutes[F] = {
+  private def routesHelper[F[_] : Http4sDsl : Messages : Sync](secret: Secret): HttpRoutes[F] = {
     val dsl: Http4sDsl[F] = implicitly[Http4sDsl[F]]
+
+    val secretHeader: CaseInsensitiveString = CaseInsensitiveString("x-secret")
 
     import dsl._
 
-    def authorizationCheck(headers: Headers): F[AuthToken] =
+    def getSecret(headers: Headers): F[Secret] =
       for {
-        authorization <- Sync[F].fromOption(
-          headers.get(org.http4s.headers.Authorization),
+        secretHeader <- Sync[F].fromOption(
+          headers.get(secretHeader),
           ApiError.MissingAuthorizationHeader
         )
-        creds = authorization.credentials
-        _ <- Sync[F].delay(println(creds))
-        authToken <- {
-          creds match {
-            case Credentials.AuthParams(scheme, _) => Sync[F].raiseError(ApiError.InvalidAuthorizationType(scheme))
-            case Credentials.Token(_, str) => Sync[F].pure(AuthToken(str))
-          }
-        }
-      } yield authToken
+      } yield Secret(secretHeader.value)
 
     HttpRoutes.of[F] {
       case GET -> Root / UserId(userId) / "messages"  =>
@@ -126,10 +119,10 @@ object server {
         }
       case req @ POST -> Root / UserId(userId) / "messages"  =>
         for {
-          authToken <- authorizationCheck(req.headers)
+          headerSecret <- getSecret(req.headers)
           _ <- {
-            if (authToken === trustedAuthToken) Sync[F].unit
-            else Sync[F].raiseError(ApiError.IncorrectAuthToken)
+            if (secret === headerSecret) Sync[F].unit
+            else Sync[F].raiseError(ApiError.IncorrectSecretHeaderValue)
           }
           createMessageRequest <- req.as[CreateMessageRequest]
             .adaptError { case _ => ApiError.InvalidCreateMessageRequestPayload }
