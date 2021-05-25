@@ -14,7 +14,7 @@ import org.http4s.implicits._
 import org.http4s.client.Client
 
 // The purpose of this spec is to write a unit test for the
-// net.ch2.Messages interface.
+// net.ch2.Messages[F] interface.
 // Note that this class extends munit.CatsEffectSuite.
 // It's a Typelevel library for testing results of type cats.effect.IO[A].
 // See https://github.com/typelevel/munit-cats-effect for more details.
@@ -49,21 +49,28 @@ final class clientspec extends CatsEffectSuite {
   // and won't be used. As a result, let's build one as so.
   private val TestUri: Uri = uri"www.not-used-as-client-is-stubbed.com"
 
+  // This test verifies that Messages[IO].getMessages successfully decodes
+  // the stubbed HTTP Response from the 'stubbedAPIClient' call.
   test("return List of messages for HTTP-200 Response w/ well-formed payload") {
+    // Define test data
     val timestamp: Instant = Instant.EPOCH
 
     val messageValue: String = "hello world"
 
-    val singleMessage = Json.obj(
+    val singleMessage: Json = Json.obj(
       "value"     := messageValue,
       "timestamp" := timestamp.toEpochMilli
     )
 
-    val responsePayload = Json.arr(singleMessage)
+    // Build a JSON payload
+    val responsePayload: Json = Json.arr(singleMessage)
 
+    // Make an HTTP Client that, for any HTTP Request, responds with an HTTP-200 Status,
+    // as well as the supplied JSON payload.
     val testClient: Client[IO] = stubbedAPIClient(Status.Ok, responsePayload)
 
-    val messagesImpl = Messages.impl[IO](
+    // Create an implementation of the Messages[IO] interface by providing the 'testClient'.
+    val messagesImpl: Messages[IO] = Messages.impl[IO](
       testClient,
       TestUri
     )
@@ -79,12 +86,19 @@ final class clientspec extends CatsEffectSuite {
         )
       )
 
+    // Test that the actual list of returned List[Message.Messages]
+    // matches what's expected, i.e. what was put into the HTTP Client stub.
     actual.map { _actual: List[Messages.Message] =>
       assertEquals(_actual, expected)
     }
   }
-  test("raise an error for a malformed payload ('value' is not a String and 'timestamp' is not valid either'") {
+
+  // This test verifies that Messages[IO].getMessages raises an error due to
+  // it failing to decode the stubbed HTTP Response.
+  test("raise an error for a malformed payload ('value' is not a String and 'timestamp' is not valid either") {
+    // Messages[F]#impl expects the HTTP Response's 'content' to be a String, not an Int
     val invalidMessageValue: Int = 1234
+    // Messages[F]#impl expects the HTTP Response's 'timestamp' to be a Long Epoch Milli, not a String
     val invalidTimestamp: String = "oops-not-an-epoch-milli"
 
     val invalidSingleMessage = Json.obj(
