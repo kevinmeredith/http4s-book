@@ -38,12 +38,12 @@ final class serverspec extends CatsEffectSuite {
     val messages: List[Messages.Message] =
       List(Messages.Message(content, timestamp))
 
-    implicit val messagesImpl: Messages[IO] =
+    val messagesImpl: Messages[IO] =
       mockMessagesImpl(IO.pure(messages), notUsed)
 
     val trustedAuthToken: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](trustedAuthToken)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, trustedAuthToken)
 
     val result: IO[(Status, Json)] = for {
       uuid <- IO.delay(UUID.randomUUID())
@@ -68,12 +68,12 @@ final class serverspec extends CatsEffectSuite {
   }
 
   test("PUT /{userId}/messages returns a 401 for a request having no x-secret Header") {
-    implicit val messagesImpl: Messages[IO] =
+    val messagesImpl: Messages[IO] =
       mockMessagesImpl(notUsed, notUsed)
 
     val trustedAuthToken: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](trustedAuthToken)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, trustedAuthToken)
 
     val result: IO[Status] = for {
       uuid <- IO.delay(UUID.randomUUID())
@@ -92,12 +92,12 @@ final class serverspec extends CatsEffectSuite {
   }
 
   test("PUT /{userId}/messages returns a 401 for a request including a x-secret header with the wrong value") {
-    implicit val messagesImpl: Messages[IO] =
+    val messagesImpl: Messages[IO] =
       mockMessagesImpl(notUsed, notUsed)
 
     val secret: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](secret)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, secret)
 
     val result: IO[Status] = for {
       uuid <- IO.delay(UUID.randomUUID())
@@ -117,12 +117,12 @@ final class serverspec extends CatsEffectSuite {
   }
 
   test("PUT /{userId}/messages returns a 200") {
-    implicit val messagesImpl: Messages[IO] =
+    val messagesImpl: Messages[IO] =
       mockMessagesImpl(notUsed, IO.unit)
 
     val secret: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](secret)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, secret)
 
     val result: IO[Status] = for {
       uuid <- IO.delay(UUID.randomUUID())

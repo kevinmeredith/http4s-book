@@ -48,7 +48,6 @@ object server {
           )
       }
     }
-    def apply[F[_]](implicit ev: Messages[F]): Messages[F] = ev
   }
   trait Messages[F[_]] {
     def get(userId: UserId): F[List[Messages.Message]]
@@ -61,7 +60,7 @@ object server {
 
   sealed abstract class ApiError() extends RuntimeException
   object ApiError {
-    case object MissingAuthorizationHeader extends ApiError
+    case object MissingXSecretHeader extends ApiError
     case object InvalidCreateMessageRequestPayload extends ApiError
     case object IncorrectSecretHeaderValue extends ApiError
   }
@@ -83,34 +82,34 @@ object server {
         .recover {
           case apiError: ApiError => apiError match {
             case ApiError.InvalidCreateMessageRequestPayload => Response[F](status = Status.BadRequest)
-            case ApiError.MissingAuthorizationHeader => Response[F](status = Status.Unauthorized)
+            case ApiError.MissingXSecretHeader => Response[F](status = Status.Unauthorized)
             case ApiError.IncorrectSecretHeaderValue => Response[F](status = Status.Unauthorized)
           }
         }
     }
 
-  def routes[F[_] : Http4sDsl : Messages : Sync](trustedAuthToken: Secret): HttpRoutes[F] =
-    middleware[F](routesHelper[F](trustedAuthToken))
+  def routes[F[_] : Http4sDsl : Sync](message: Messages[F], trustedAuthToken: Secret): HttpRoutes[F] =
+    middleware[F](routesHelper[F](message, trustedAuthToken))
 
-  private def routesHelper[F[_] : Http4sDsl : Messages : Sync](secret: Secret): HttpRoutes[F] = {
+  private def routesHelper[F[_] : Http4sDsl : Sync](message: Messages[F], secret: Secret): HttpRoutes[F] = {
     val dsl: Http4sDsl[F] = implicitly[Http4sDsl[F]]
 
     val secretHeader: CaseInsensitiveString = CaseInsensitiveString("x-secret")
 
     import dsl._
 
-    def getSecret(headers: Headers): F[Secret] =
+    def getSecretHeader(headers: Headers): F[Header] =
       for {
         secretHeader <- Sync[F].fromOption(
           headers.get(secretHeader),
-          ApiError.MissingAuthorizationHeader
+          ApiError.MissingXSecretHeader
         )
-      } yield Secret(secretHeader.value)
+      } yield secretHeader
 
     HttpRoutes.of[F] {
       case GET -> Root / UserId(userId) / "messages"  =>
         val messages: F[List[Messages.Message]] =
-          Messages[F].get(userId)
+          message.get(userId)
         messages.map { _messages: List[Messages.Message] =>
           Response[F](status = Status.Ok)
             .withEntity[List[Messages.Message]](
@@ -119,16 +118,16 @@ object server {
         }
       case req @ POST -> Root / UserId(userId) / "messages"  =>
         for {
-          headerSecret <- getSecret(req.headers)
+          header <- getSecretHeader(req.headers)
           _ <- {
-            if (secret === headerSecret) Sync[F].unit
+            if (secret.value === header.value) Sync[F].unit
             else Sync[F].raiseError(ApiError.IncorrectSecretHeaderValue)
           }
           createMessageRequest <- req.as[CreateMessageRequest]
             .adaptError { case _ => ApiError.InvalidCreateMessageRequestPayload }
           now <- Sync[F].delay(Instant.now(Clock.systemUTC()))
-          message = Messages.Message(createMessageRequest.content, now)
-          _ <- Messages[F].create(userId, message)
+          msg = Messages.Message(createMessageRequest.content, now)
+          _ <- message.create(userId, msg)
         } yield Response[F](status = Status.Ok)
     }
   }

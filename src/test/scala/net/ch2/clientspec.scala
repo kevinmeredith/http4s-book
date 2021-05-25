@@ -83,7 +83,7 @@ final class clientspec extends CatsEffectSuite {
       assertEquals(_actual, expected)
     }
   }
-  test("raise an error for a malformed payload ('value'' is not a String and 'timestamp' is not valid either'") {
+  test("raise an error for a malformed payload ('value' is not a String and 'timestamp' is not valid either'") {
     val invalidMessageValue: Int = 1234
     val invalidTimestamp: String = "oops-not-an-epoch-milli"
 
