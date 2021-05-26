@@ -61,7 +61,7 @@ final class serverspec extends CatsEffectSuite {
         assertEquals(
           json,
           Json.arr(
-            Json.obj("content" := content, "timestamp" := timestamp.toEpochMilli )
+            Json.obj("content" := content, "timestamp" := "1970-01-01T00:00:00")
           )
         )
     }
