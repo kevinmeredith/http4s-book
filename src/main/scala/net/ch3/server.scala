@@ -93,7 +93,11 @@ object server {
     case object IncorrectSecretHeaderValue                            extends ApiError
   }
 
-  //
+  // Define a case class for capturing a 'create messge' request.
+  // Effectively it's a Data Transfer Object (see https://en.wikipedia.org/wiki/Data_transfer_object).
+  // I opted against defining a Decoder for Messages.Message, which requires a (String + Timestamp).
+  // The request simply includes a String message, and then, on the server I filled in the Timestamp
+  // with "now."
   private final case class CreateMessageRequest(content: String)
   private object CreateMessageRequest {
     implicit val decoder: Decoder[CreateMessageRequest] = new Decoder[CreateMessageRequest] {
@@ -104,6 +108,10 @@ object server {
     }
   }
 
+  // http4s.org defines a Middleware:
+  // > A middleware is a wrapper around a service that provides a means of manipulating the
+  // > Request sent to service, and/or the Response returned by the service.
+  // In this case, this middleware "handles" ApiError Throwable's.
   private def middleware[F[_] : Sync](routes: HttpRoutes[F]): HttpRoutes[F] =
     HttpRoutes.apply { req: Request[F] =>
       routes
