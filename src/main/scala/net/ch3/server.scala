@@ -83,17 +83,19 @@ object server {
   // You may be asking why RuntimeException is used. A valid criticism
   // of this choice is that RuntimeException is not sealed, i.e. the compiler
   // cannot warn us if we fail to handle a particular sub-class of RuntimeException.
-  // The reason for Throwable is,
-  // //https://github.com/typelevel/cats-effect/blob/v2.5.1/docs/datatypes/io.md#error-handling
+  // The reason for Throwable is, as
+  // https://github.com/typelevel/cats-effect/blob/v2.5.1/docs/datatypes/io.md#error-handling explains,
+  // the MonadError[IO, Throwable] instance means that any error handling will be against the Throwable type.
   sealed abstract class ApiError() extends RuntimeException
   object ApiError {
-    case object MissingXSecretHeader extends ApiError
+    case object MissingXSecretHeader                                  extends ApiError
     final case class InvalidCreateMessageRequestPayload(t: Throwable) extends ApiError
-    case object IncorrectSecretHeaderValue extends ApiError
+    case object IncorrectSecretHeaderValue                            extends ApiError
   }
 
-  final case class CreateMessageRequest(content: String)
-  object CreateMessageRequest {
+  //
+  private final case class CreateMessageRequest(content: String)
+  private object CreateMessageRequest {
     implicit val decoder: Decoder[CreateMessageRequest] = new Decoder[CreateMessageRequest] {
       override def apply(c: HCursor): Result[CreateMessageRequest] =
         c.downField("content")

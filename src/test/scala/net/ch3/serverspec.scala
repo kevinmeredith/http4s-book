@@ -19,9 +19,9 @@ final class serverspec extends CatsEffectSuite {
   private def mockMessagesImpl(
     stubGetResult: IO[List[Messages.Message]],
     stubCreateResult: IO[Unit]
-  ) = new Messages[IO] {
-    override def get(userId: UserId): IO[List[Messages.Message]] = stubGetResult
-    override def create(userId: UserId, message: Messages.Message): IO[Unit] = stubCreateResult
+  ): Messages[IO] = new Messages[IO] {
+    override def get: IO[List[Messages.Message]] = stubGetResult
+    override def create(message: Messages.Message): IO[Unit] = stubCreateResult
   }
 
   private val notUsed: IO[Nothing] = IO.raiseError(new RuntimeException("not used - should not be called!"))
@@ -45,12 +45,12 @@ final class serverspec extends CatsEffectSuite {
 
     val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, trustedAuthToken)
 
+    val request: Request[IO] = Request[IO](
+      method = Method.GET,
+      uri = TestUri / "messages"
+    )
+
     val result: IO[(Status, Json)] = for {
-      uuid <- IO.delay(UUID.randomUUID())
-      request =  Request[IO](
-        method = Method.GET,
-        uri = TestUri / uuid.toString / "messages"
-      )
       resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
       json <- resp.as[Json]
     } yield (resp.status, json)
@@ -67,7 +67,7 @@ final class serverspec extends CatsEffectSuite {
     }
   }
 
-  test("PUT /{userId}/messages returns a 401 for a request having no x-secret Header") {
+  test("POST /messages returns a 401 for a request having no x-secret Header") {
     val messagesImpl: Messages[IO] =
       mockMessagesImpl(notUsed, notUsed)
 
@@ -75,14 +75,14 @@ final class serverspec extends CatsEffectSuite {
 
     val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, trustedAuthToken)
 
+    val request: Request[IO] = Request[IO](
+      method = Method.POST,
+      uri = TestUri / "messages"
+    ).withEntity[Json](
+      Json.obj("content" := "a witty remark")
+    )
+
     val result: IO[Status] = for {
-      uuid <- IO.delay(UUID.randomUUID())
-      request =  Request[IO](
-        method = Method.POST,
-        uri = TestUri / uuid.toString / "messages"
-      ).withEntity[Json](
-        Json.obj("content" := "a witty remark")
-      )
       resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
     } yield resp.status
 
@@ -91,7 +91,7 @@ final class serverspec extends CatsEffectSuite {
     }
   }
 
-  test("PUT /{userId}/messages returns a 401 for a request including a x-secret header with the wrong value") {
+  test("POST /messages returns a 401 for a request including a x-secret header with the wrong value") {
     val messagesImpl: Messages[IO] =
       mockMessagesImpl(notUsed, notUsed)
 
@@ -99,15 +99,15 @@ final class serverspec extends CatsEffectSuite {
 
     val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, secret)
 
-    val result: IO[Status] = for {
-      uuid <- IO.delay(UUID.randomUUID())
-      request =  Request[IO](
-        method = Method.POST,
-        uri = TestUri / uuid.toString / "messages"
-      ).withHeaders(Headers.of(Header("x-secret", "not-the-secret")))
-       .withEntity[Json](
+    val request: Request[IO] = Request[IO](
+      method = Method.POST,
+      uri = TestUri / "messages"
+    ).withHeaders(Headers.of(Header("x-secret", "not-the-secret")))
+      .withEntity[Json](
         Json.obj("content" := "a witty remark")
       )
+
+    val result: IO[Status] = for {
       resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
     } yield resp.status
 
@@ -116,7 +116,7 @@ final class serverspec extends CatsEffectSuite {
     }
   }
 
-  test("PUT /{userId}/messages returns a 200") {
+  test("POST /messages returns a 200") {
     val messagesImpl: Messages[IO] =
       mockMessagesImpl(notUsed, IO.unit)
 
@@ -124,15 +124,15 @@ final class serverspec extends CatsEffectSuite {
 
     val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, secret)
 
+    val request: Request[IO] = Request[IO](
+      method = Method.POST,
+      uri = TestUri / "messages"
+    ).withHeaders(Headers.of(Header("x-secret", secret.value)))
+      .withEntity[Json](
+        Json.obj("content" := "a witty remark")
+      )
+
     val result: IO[Status] = for {
-      uuid <- IO.delay(UUID.randomUUID())
-      request =  Request[IO](
-        method = Method.POST,
-        uri = TestUri / uuid.toString / "messages"
-      ).withHeaders(Headers.of(Header("x-secret", secret.value)))
-        .withEntity[Json](
-          Json.obj("content" := "a witty remark")
-        )
       resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
     } yield resp.status
 
