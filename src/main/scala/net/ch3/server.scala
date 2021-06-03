@@ -111,42 +111,102 @@ object server {
   // http4s.org defines a Middleware:
   // > A middleware is a wrapper around a service that provides a means of manipulating the
   // > Request sent to service, and/or the Response returned by the service.
-  // In this case, this middleware "handles" ApiError Throwable's.
-  private def middleware[F[_] : Sync](routes: HttpRoutes[F]): HttpRoutes[F] =
+  // In this case, this middleware handles any thrown ApiException's, turning them into
+  // HTTP Responses.
+  private def middleware[F[_] : Sync](routes: HttpRoutes[F], log: String => F[Unit]): HttpRoutes[F] =
     HttpRoutes.apply { req: Request[F] =>
       routes
         .run(req)
-        .recover {
+        .handleErrorWith {
+          // Why are the return types wrapped in OptionT#liftF? The documentation of
+          // that function notes:
+          // > Lifts the F[A] Functor into an OptionT[F, A].
+          // In this case, the A is a Response[F].
+          // Recall, from the beginning of this book, that HttpRoutes[F] is a type alias for
+          // Kleisli[OptionT[F, *], Request[F], Response[F]]. Go back to that chapter if
+          // if that type is not clear.
           case apiError: ApiError => apiError match {
-            case ApiError.InvalidCreateMessageRequestPayload(_) => Response[F](status = Status.BadRequest)
-            case ApiError.MissingXSecretHeader => Response[F](status = Status.Unauthorized)
-            case ApiError.IncorrectSecretHeaderValue => Response[F](status = Status.Unauthorized)
+            case ApiError.InvalidCreateMessageRequestPayload(t) =>
+              OptionT.liftF(
+                log(s"InvalidCreateMessageRequestPayloadResponse with Throwable: ${t.getMessage}").as(
+                  Response[F](status = Status.BadRequest)
+                )
+              )
+            case ApiError.MissingXSecretHeader =>
+              OptionT.liftF(
+                log("MissingXSecretHeader").as(
+                  Response[F](status = Status.Unauthorized)
+                )
+              )
+            case ApiError.IncorrectSecretHeaderValue =>
+              OptionT.liftF(
+                log("IncorrectSecretHeaderValue").as(
+                  Response[F](status = Status.Unauthorized)
+                )
+              )
           }
         }
     }
 
-  def routes[F[_] : Http4sDsl : Sync](message: Messages[F], trustedAuthToken: Secret): HttpRoutes[F] =
-    middleware[F](routesHelper[F](message, trustedAuthToken))
+  // This public method returns HttpRoutes[F], namely the HTTP Service
+  // that will handle GET and POST /messages HTTP Requests.
+  def routes[F[_] : Http4sDsl : Sync](
+    message: Messages[F],
+    log: String => F[Unit],
+    trustedAuthToken: Secret
+  ): HttpRoutes[F] = {
+    // Note that its definition consists of applying the middleware to
+    // the private method, routesHelper.
+    middleware[F](routesHelper[F](message, trustedAuthToken), log)
+  }
 
+  // routesHelper is the workhorse method, i.e. actually defines which HTTP Requests
+  // the service will handle.
   private def routesHelper[F[_] : Http4sDsl : Sync](message: Messages[F], secret: Secret): HttpRoutes[F] = {
     val secretHeader: CaseInsensitiveString = CaseInsensitiveString("x-secret")
 
-    def getSecretHeader(headers: Headers): F[Header] =
-      for {
-        secretHeader <- Sync[F].fromOption(
-          headers.get(secretHeader),
-          ApiError.MissingXSecretHeader
-        )
-      } yield secretHeader
+    // Add a helper method for extracting the 'x-secret' header
+    // from the given Headers.
+    def getSecretHeader(headers: Headers): F[Header] = {
 
+      // If the header is missing, i.e. Headers#get returns None, then
+      // raise an 'ApiError.MissingXSecretHeader' RuntimeException.
+      Sync[F].fromOption(
+        headers.get(secretHeader),
+        ApiError.MissingXSecretHeader
+      )
+    }
+
+    // The following code summons the Http4sDsl[F], and then
+    // imports all of its members in order to make use of the
+    // http4s DSL.
     val dsl: Http4sDsl[F] = implicitly[Http4sDsl[F]]
     import dsl._
 
+    // HttpRoutes#of accepts a single argument:
+    // > PartialFunction[Request[F], F[Response[F]]]
+    // Observe that it's a partial function, i.e. does not handle all inputs.
+    // This signature makes sense as an HTTP Service accepts a Request and returns a Response.
     HttpRoutes.of[F] {
+      // This service handles GET /messages using the http4s DSL, available via the above 'import dsl._'.
       case GET -> Root / "messages"  =>
+        // Get a list of messages
         val messages: F[List[Messages.Message]] =
           message.get
+        // Map over messages in order to return a F[Response[F]].
         messages.map { _messages: List[Messages.Message] =>
+          // Return an HTTP-200 w/ a JSON payload
+          // Note the signature of 'withEntity':
+          // > def withEntity[T](b: T)(implicit w: EntityEncoder[F, T])
+          // In this case, the T is List[Messages.Message]. How is
+          // EntityEncoder[F, List[Messages.Message]] is in scope?
+          // The above import, org.http4s.circe.CirceEntityEncoder.circeEntityEncoder,
+          // has the following signature:
+          // > implicit def circeEntityEncoder[F[_], A: Encoder]: EntityEncoder[F, A]
+          // We've defined an Encoder[Messages.Message] within the Messages.Message's object.
+          // circe provides an implicit for lifting an Encoder[A] into a Encoder[List[A]]:
+          // > implicit final def encodeList[A](implicit encodeA: Encoder[A]): AsArray[List[A]] =
+          // https://github.com/circe/circe/blob/v0.13.0/modules/core/shared/src/main/scala/io/circe/Encoder.scala#L349
           Response[F](status = Status.Ok)
             .withEntity[List[Messages.Message]](
               _messages

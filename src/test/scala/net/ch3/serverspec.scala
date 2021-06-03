@@ -30,6 +30,8 @@ final class serverspec extends CatsEffectSuite {
 
   private implicit val http4sDsl: Http4sDsl[IO] = Http4sDsl[IO]
 
+  private def noOpLog(str: String): IO[Unit] = IO.unit
+
   test("GET /{userId}/messages returns a list of messages") {
     val timestamp: Instant = Instant.EPOCH
 
@@ -43,7 +45,7 @@ final class serverspec extends CatsEffectSuite {
 
     val trustedAuthToken: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, trustedAuthToken)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
 
     val request: Request[IO] = Request[IO](
       method = Method.GET,
@@ -73,7 +75,7 @@ final class serverspec extends CatsEffectSuite {
 
     val trustedAuthToken: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, trustedAuthToken)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
 
     val request: Request[IO] = Request[IO](
       method = Method.POST,
@@ -97,7 +99,7 @@ final class serverspec extends CatsEffectSuite {
 
     val secret: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, secret)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, secret)
 
     val request: Request[IO] = Request[IO](
       method = Method.POST,
@@ -122,7 +124,7 @@ final class serverspec extends CatsEffectSuite {
 
     val secret: Secret = Secret("secret")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, secret)
+    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, secret)
 
     val request: Request[IO] = Request[IO](
       method = Method.POST,
