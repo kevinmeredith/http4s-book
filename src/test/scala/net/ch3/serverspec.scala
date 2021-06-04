@@ -4,9 +4,8 @@ import cats.effect.IO
 import io.circe.Json
 import io.circe.syntax._
 import java.time.Instant
-import java.util.UUID
 import munit.CatsEffectSuite
-import net.ch3.models.{Secret, UserId}
+import net.ch3.models.Secret
 import net.ch3.server.Messages
 import org.http4s.HttpRoutes
 import org.http4s._

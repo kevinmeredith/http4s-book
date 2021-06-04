@@ -4,7 +4,7 @@ import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
 import io.circe.Decoder.Result
-import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax._
 import org.http4s._
 import org.http4s.circe.CirceEntityEncoder.circeEntityEncoder
@@ -12,9 +12,8 @@ import org.http4s.circe.CirceSensitiveDataEntityDecoder.circeEntityDecoder
 import org.http4s.dsl.Http4sDsl
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
-import java.time.format.{DateTimeFormatter, DateTimeParseException}
-import java.util.UUID
-import net.ch3.models.{Secret, UserId}
+import java.time.format.DateTimeFormatter
+import net.ch3.models.Secret
 import net.ch3.server.Messages
 import org.http4s.util.CaseInsensitiveString
 
@@ -198,8 +197,8 @@ object server {
           // Return an HTTP-200 w/ a JSON payload
           // Note the signature of 'withEntity':
           // > def withEntity[T](b: T)(implicit w: EntityEncoder[F, T])
-          // In this case, the T is List[Messages.Message]. How is
-          // EntityEncoder[F, List[Messages.Message]] is in scope?
+          // In this case, the T is List[Messages.Message].
+          // How is EntityEncoder[F, List[Messages.Message]] is in scope?
           // The above import, org.http4s.circe.CirceEntityEncoder.circeEntityEncoder,
           // has the following signature:
           // > implicit def circeEntityEncoder[F[_], A: Encoder]: EntityEncoder[F, A]
@@ -212,19 +211,44 @@ object server {
               _messages
             )
         }
+      // This service handles POST /messages
       case req @ POST -> Root / "messages"  =>
         for {
+          // This API requires authorization. As a result, let's get the 'x-secret- header
+          // and verify that the header's value matches the real secret's value.
           header <- getSecretHeader(req.headers)
           _ <- {
             if (secret.value === header.value) Sync[F].unit
             else Sync[F].raiseError(ApiError.IncorrectSecretHeaderValue)
           }
+          // Invoke the org.http4s.Media#as method:
+          // > final def as[A](implicit F: MonadThrow[F], decoder: EntityDecoder[F, A]): F[A]
+          // Note that org.http4s.Request extends Media
           createMessageRequest <- req.as[CreateMessageRequest]
-            .adaptError { case e => ApiError.InvalidCreateMessageRequestPayload(e) }
+            .adaptError {
+              // adaptError is an extension methon on MonadErrorOps. It will map, in this case,
+              // a Throwable => Throwable.
+              // > def adaptError(pf: PartialFunction[E, E])(implicit F: MonadError[F, E]): F[A]
+              // ApiError.InvalidCreateMessageRequestPayload(e)
+              // In this case, any failure to read the Request as a CreateMessageRequest
+              // will have an error mapped to ApiError.InvalidCreateMessageRequestPayload(e).
+              case e => ApiError.InvalidCreateMessageRequestPayload(e)
+            }
+          // Since Instant.now(Clock.systemUTC()) is not referentially transparent, it must be
+          // wrapped in Sync[F]#delay.
+          // Its signature is:
+          // > def delay[A](thunk: => A): F[A]
+          // The A input is evaluated in a by-name manner, i.e. it's not evaluated
+          // until it's accessed.
           now <- Sync[F].delay(Instant.now(Clock.systemUTC()))
+          // Construct a Messages.Message
           msg = Messages.Message(createMessageRequest.content, now)
+          // Create a message using the inteface
           _ <- message.create(msg)
-        } yield Response[F](status = Status.Ok)
+        } yield {
+          // Return an HTTP-200 on success
+          Response[F](status = Status.Ok)
+        }
     }
   }
 
