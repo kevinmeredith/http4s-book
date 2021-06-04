@@ -14,10 +14,7 @@ import org.http4s.dsl.Http4sDsl
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
 import net.ch3.models.Secret
-import net.ch3.server.Messages
 import org.http4s.util.CaseInsensitiveString
-
-import scala.util.Try
 
 object server {
 
