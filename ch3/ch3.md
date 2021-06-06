@@ -46,4 +46,16 @@ Let's look into an example of building a server with two routes:
         * HTTP-403 Forbidden - Authorization user != path's user
         * HTTP-500 Something went wrong on server
 
+Now let's read the src/main code.
 
+```scala
+```
+
+## Why Throwable instead of EitherT?
+
+## Recommendation on Middleware Approach
+
+Let's review the src/test code.
+
+```scala
+```

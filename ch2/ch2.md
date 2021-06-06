@@ -114,4 +114,4 @@ using a type other than `cats.effect.IO` for testing. Although this is true, in 
 experience building web services in production, I've 99% of the time used `cats.effect.IO`. It's a natural choice since
 that's what will be used in the real-world instance of the application. An additional argument for using `cats.effect.IO`
 as the effect type is https://github.com/typelevel/munit-cats-effect. That library enables building tests that compare
-values of type `IO[A]`. `
+values of type `IO[A]`.
