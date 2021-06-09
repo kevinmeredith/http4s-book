@@ -53,7 +53,27 @@ Now let's read the src/main code.
 
 ## Why Throwable instead of EitherT?
 
-## Recommendation on Middleware Approach
+The server and client use an error type of java.lang.Throwable. In my four years of experience
+building production web services to real customers, I've found `F[A]`, where IO is supplied for F
+in the main program, to be a simple choice.
+
+Critics of Throwable will correctly point out that Throwable is not sealed. In other words, it can't
+provide any compile-time guarantees that our code will handle all sub-classes of Throwable. Such critics
+will note that using a 'sealed trait ErrorADT' hierarchy will provide such a guarantee. Likely those folks
+will point to EitherT[F, ErrorADT, A] as a better alternative to F[A].
+
+...
+
+To minimize the risk of failing an error, e.g. ApiError, I recommend:
+
+ * having the custom Throwable sub-classes be sealed to gain exhaustivity checking
+    * Note that ApiError is sealed, so pattern matching on it enables us to use the compiler for exhaustive checks
+ * using a middleware to match on the ApiError, and then the exhaustive cases
+    * See the 'middleware' private method in server.scala
+
+## Comments on the Middleware Approach
+
+keep only related routes together + use middleware per routes file to avoid tight coupling/hard to maintain +  don't DRY
 
 Let's review the src/test code.
 

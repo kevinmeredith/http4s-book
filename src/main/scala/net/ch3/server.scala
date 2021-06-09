@@ -69,7 +69,7 @@ object server {
   trait Messages[F[_]] {
     // Get all messages
     def get: F[List[Messages.Message]]
-    // Create a new message
+    // Create a new message. Note that Unit will returned on successful creation.
     def create(message: Messages.Message): F[Unit]
   }
 

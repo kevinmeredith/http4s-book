@@ -159,6 +159,8 @@ final class serverspec extends CatsEffectSuite {
   }
 
   test("POST /messages returns a 200") {
+    // Observe that the stubCreateResult argument is IO.unit, i.e. indicating
+    // the successful creation of a message.
     val messagesImpl: Messages[IO] =
       stubMessagesImpl(notUsed, IO.unit)
 
