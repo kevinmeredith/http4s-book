@@ -62,18 +62,33 @@ provide any compile-time guarantees that our code will handle all sub-classes of
 will note that using a 'sealed trait ErrorADT' hierarchy will provide such a guarantee. Likely those folks
 will point to EitherT[F, ErrorADT, A] as a better alternative to F[A].
 
-...
+Although EitherT[IO, ErrorADT, A] may seem appealing, it has the following disadvantages:
+  * two error channels, Throwable and ErrorADT, make for ambiguous error handling
+  * unifying multiple error types, e.g. ErrorADTA and ErrorADTB into ParentErrorADT, requires "lifting"
+    boilerplate (see https://gist.github.com/tpolecat/a0b65e8ffdf5dc34a48f)
+  * F[A] is simpler for lesser experienced FP Developers to understand than EitherT
 
-To minimize the risk of failing an error, e.g. ApiError, I recommend:
+Based on my experience, I recommend:
 
  * having the custom Throwable sub-classes be sealed to gain exhaustivity checking
     * Note that ApiError is sealed, so pattern matching on it enables us to use the compiler for exhaustive checks
  * using a middleware to match on the ApiError, and then the exhaustive cases
     * See the 'middleware' private method in server.scala
 
-## Comments on the Middleware Approach
+## Recommendations with Middleware Approach
 
-keep only related routes together + use middleware per routes file to avoid tight coupling/hard to maintain +  don't DRY
+ * Group together related services when defining a `def routes[F[_]](repository: Repository[F]): HttpRoutes[F]`
+    * An object/class that contains multiple routes is a liability. With many routes comes more interface inputs,
+      which results in more complicated and bloated tests. The bloat comes into play since, when testing a route
+      in the manner from `serverspec.scala`, every test requires an implementation of each interface.
+ * Use a middleware for each routes, i.e. don't re-use them across different `def routes` in objects/classes.
+    * Re-using middlewares across routes, i.e. two different object's routes use the same middleware, results in tight
+      coupling across services. When using a shared middleware, any changes could ripple out and break the other route. That
+      can lead to slower development.
+    * Consequently, I recommend separate ErrorADT hierarchies per `def routes`.
+        * Although it may result in duplicating code, using a separate error ADT per routes captures all error cases, no more
+          or less.
+        *
 
 Let's review the src/test code.
 
