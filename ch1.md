@@ -14,11 +14,18 @@ The library's [docs](https://http4s.org/v0.21/service/) begins its introduction 
 > great. If not, don’t panic: Kleisli is just a convenient wrapper around a Request => F[Response], and F is an
 > effectful operation.
 
-A Scala/FP Developer critically commented on [Twitter](https://twitter.com/hmemcpy/status/1215198123502571521):
+A Scala/FP Developer critically commented in Jan-2020:
 
-> This does not belong anywhere near getting started.
+```
+From the "getting started":
 
-I can see the author's point, yet the documentation is no doubt correct. Let's walk through this explanation in-depth.
+> An HttpRoutes[F] is a simple alias for Kleisli[OptionT[F, ?], Request, Response].
+
+This does not belong anywhere near getting started.
+```
+
+I appreciate the sentiment of the author's tweet, yet the documentation is no doubt correct. Let's walk through this
+explanation in-depth.
 
 [cats](https://github.com/typelevel/cats) documents [Kleisli](https://typelevel.org/cats/datatypes/kleisli.html), [OptionT](https://typelevel.org/cats/datatypes/optiont.html),
 and many other concepts. Please read those descriptions if you're not comfortable with them.
