@@ -1,8 +1,9 @@
 # Chapter 1. What is `http4s`?
 
 This chapter covers the following topics:
- * Introduction to http4s and `org.http4s.HttpRoutes[F]`
- * HttpRoutes[F] Example
+
+ - Introduction to http4s and `org.http4s.HttpRoutes[F]
+ - HttpRoutes[F] Example
 
 ## Introduction to http4s and `org.http4s.HttpRoutes[F]`
 
@@ -51,35 +52,42 @@ sbt:http4s-book> console
 Welcome to Scala 2.12.12 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_112).
 Type in expressions for evaluation. Or try :help.
 
-scala> import org.http4s._, cats.effect._, cats._, cats.data._, org.http4s.dsl.io._, org.http4s.implicits._
+scala> import org.http4s._, cats.effect._, cats._, cats.data._
 import org.http4s._
 import cats.effect._
 import cats._
 import cats.data._
+
+scala> import org.http4s.dsl.io._, org.http4s.implicits._
 import org.http4s.dsl.io._
 import org.http4s.implicits._
 
-scala> val fooRequest: Request[IO] = Request[IO](uri = uri"www.leanpub.com").withPathInfo("/foo")
-fooRequest: org.http4s.Request[cats.effect.IO] = Request(method=GET, uri=/foo, headers=Headers())
+scala> val fooRequest: Request[IO] =
+   Request[IO](uri = uri"www.a.com").withPathInfo("/foo")
+fooRequest: org.http4s.Request[cats.effect.IO] =
+   Request(method=GET, uri=/foo, headers=Headers())
 
 scala> val fooService: HttpRoutes[IO] = HttpRoutes.of[IO] {
      |     case GET -> Root / "foo" => IO.pure(Response[IO](status = Status.Ok))
      |   }
-fooService: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(org.http4s.HttpRoutes$$$Lambda$4760/1573956710@6093fe7c)
+fooService: org.http4s.HttpRoutes[cats.effect.IO] =
+   Kleisli(org.http4s.HttpRoutes$$$Lambda$4760/1573956710@6093fe7c)
 
 scala> fooService.run(fooRequest).value
 res0: cats.effect.IO[Option[org.http4s.Response[cats.effect.IO]]] = IO$1434040922
 
 scala> fooService.run(fooRequest).value.unsafeRunSync
-res1: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=200, headers=Headers()))
+res1: Option[org.http4s.Response[cats.effect.IO]] =
+   Some(Response(status=200, headers=Headers()))
 ```
 
 In the following, note that `None` will be returned. That's because, upon execution of the `IO`,
 the given `Request[IO]` does not apply or match the `HttpRoutes[IO]`.
 
 ```scala
-scala> val barRequest: Request[IO] = Request[IO](uri = uri"www.leanpub.com").withPathInfo("/bar")
-barRequest: org.http4s.Request[cats.effect.IO] = Request(method=GET, uri=/bar, headers=Headers())
+scala> val barRequest: Request[IO] = Request[IO](uri = uri"www.a.com").withPathInfo("/bar")
+barRequest: org.http4s.Request[cats.effect.IO] =
+    Request(method=GET, uri=/bar, headers=Headers())
 
 scala> fooService.run(barRequest).value.unsafeRunSync
 res2: Option[org.http4s.Response[cats.effect.IO]] = None
@@ -95,24 +103,32 @@ import cats.implicits._
 scala> val barService: HttpRoutes[IO] = HttpRoutes.of[IO] {
      |   case GET -> Root / "bar" => IO.pure(Response[IO](status = Status.NoContent))
      | }
-barService: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(org.http4s.HttpRoutes$$$Lambda$4760/1573956710@60088dfe)
+barService: org.http4s.HttpRoutes[cats.effect.IO] =
+  Kleisli(org.http4s.HttpRoutes$$$Lambda$4760/1573956710@60088dfe)
 
-// As the http4s' docs note, it's necessary to use the '-Ypartial-unification' scalac option when using `<+>`
+// As the http4s' docs note, it's necessary to use the '-Ypartial-unification'
+//  scalac option when using `<+>`
 scala> val combined: HttpRoutes[IO] = fooService <+> barService
-combined: org.http4s.HttpRoutes[cats.effect.IO] = Kleisli(cats.data.KleisliSemigroupK$$Lambda$4828/455661998@2dc11b92)
+combined: org.http4s.HttpRoutes[cats.effect.IO] =
+  Kleisli(cats.data.KleisliSemigroupK$$Lambda$4828/455661998@2dc11b92)
 
 scala> combined.run(fooRequest).value.unsafeRunSync
-res4: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=200, headers=Headers()))
+res4: Option[org.http4s.Response[cats.effect.IO]] =
+  Some(Response(status=200, headers=Headers()))
 
 scala> combined.run(barRequest).value.unsafeRunSync
-res5: Option[org.http4s.Response[cats.effect.IO]] = Some(Response(status=204, headers=Headers()))
+res5: Option[org.http4s.Response[cats.effect.IO]] =
+  Some(Response(status=204, headers=Headers()))
 ```
 
-With the aim of making the optionality piece crystal clear, let's look at the signature of the `HttpRoutes#of[IO]` method:
+With the aim of making the optionality piece crystal clear, let's look at the signature of the `HttpRoutes#of[IO]`
+ method:
 
 
 ```scala
-  def of[F[_]: Defer: Applicative](pf: PartialFunction[Request[F], F[Response[F]]]): HttpRoutes[F] =
+  def of[F[_]: Defer: Applicative](
+     pf: PartialFunction[Request[F], F[Response[F]]]
+  ): HttpRoutes[F] =
 ```
 
 Before we proceed, let's look at the type classes, `Defer` and `Applicative`.
@@ -144,9 +160,11 @@ to be better than building large `HttpRoutes[IO]`. By "large" and "small," I'm t
 
 Building separate, small `HttpRoutes[IO]`, offers the following benefits:
 
-    * Readability  - understanding an `HttpRoutes[IO]` with 1 path is easier to understand than 10 paths.
-    * Testability  - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than one
-                     with 10 path test.
+ - Readability
+    - understanding an `HttpRoutes[IO]` with 1 path, e.g. GET /foo, is easier to understand than 10 paths.
+ - Testability
+    - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than one
+      with 10 path test.
 
 Overall, building separate, small `HttpRoutes[IO]` produces code that's easier to maintain. Otherwise, the risk exists,
 which I've encountered first-hand and been guilty of, of teams building bad habits of just always adding to

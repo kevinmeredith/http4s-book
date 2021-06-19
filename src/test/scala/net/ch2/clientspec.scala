@@ -33,8 +33,8 @@ final class clientspec extends CatsEffectSuite {
     // > Useful for generating pre-determined responses for requests in testing.
     // This clearly applies to this test case.
     Client.fromHttpApp[IO](
-      // Finally, let's pass an HttpApp[IO] that returns an HTTP Response with the given input
-      // Status and JSON payload.
+      // Finally, let's pass an HttpApp[IO] that returns an HTTP Response
+      // with the given input Status and JSON payload.
       HttpApp.pure[IO](
         Response[IO](
           status = responseStatus
@@ -69,7 +69,8 @@ final class clientspec extends CatsEffectSuite {
     // as well as the supplied JSON payload.
     val testClient: Client[IO] = stubbedAPIClient(Status.Ok, responsePayload)
 
-    // Create an implementation of the Messages[IO] interface by providing the 'testClient'.
+    // Create an implementation of the Messages[IO] interface by providing
+    //  the 'testClient'.
     val messagesImpl: Messages[IO] = Messages.impl[IO](
       testClient,
       TestUri
@@ -95,10 +96,14 @@ final class clientspec extends CatsEffectSuite {
 
   // This test verifies that Messages[IO].getMessages raises an error due to
   // it failing to decode the stubbed HTTP Response.
-  test("raise an error for a malformed payload ('value' is not a String and 'timestamp' is not valid either") {
-    // Messages[F]#impl expects the HTTP Response's 'content' to be a String, not an Int
+  test("raise an error for a malformed payload " +
+    "('value' is not a String and 'timestamp' is not " +
+    "valid either") {
+    // Messages[F]#impl expects the HTTP Response's 'content' to be a
+    //  String, not an Int
     val invalidMessageValue: Int = 1234
-    // Messages[F]#impl expects the HTTP Response's 'timestamp' to be a Long Epoch Milli, not a String
+    // Messages[F]#impl expects the HTTP Response's 'timestamp' to
+    //  be a Long Epoch Milli, not a String
     val invalidTimestamp: String = "oops-not-an-epoch-milli"
 
     val invalidSingleMessage = Json.obj(
@@ -118,6 +123,7 @@ final class clientspec extends CatsEffectSuite {
     val actual: IO[List[Messages.Message]] =
       messagesImpl.getMessages("test-input-that-does-not-matter")
 
+    // Pass the test if the executed effect produces a 'GetMessagesError'.
     actual.attempt.map {
       case Right(x)                     => fail(s"Expected Throwable, but got Right($x)")
       case Left(GetMessagesError(_, _)) => assert(true)

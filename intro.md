@@ -1,13 +1,23 @@
 # Introduction
 
+This chapter covers the following topics:
+
+- Introduction to the Author
+- Importance of Team Ownership and Maintainability
+- Intended Audience of Book
+- Why I'm Writing This Book
+
+## Introduction to the Author
+
 Hi - I'm Kevin Meredith. Since August-2013 I've worked professionally in Scala.
 
-Beginning in Feb-2017, I joined a company to write production code in Scala in Pure Functional Programming (FP) in Scala. During that time-frame,
-I have built and maintained in production close to a dozen http4s web services. In addition, I have maintained, five
-other web services. During this time, I've used cats, scalaz, scalaz-concurrent, doobie, cats-effect, fs2, circe, argonaut,
-refined, scalacheck, specs2 and scalatest libraries when building these production-deployed web services.
+Beginning in Feb-2017, I joined a company to write production code in Scala in Pure Functional Programming (FP) in Scala.
+During that time-frame, I have built and maintained in production close to a dozen http4s web services. During this time,
+I've used cats, scalaz, scalaz-concurrent, doobie, cats-effect, fs2, circe, argonaut, refined, scalacheck, specs2 and
+scalatest libraries when building these production-deployed and real customer-s erving web services.
 
-Prior to my current pure FP in Scala job, I have built web services using Jersey (Java), Play, Lift, Hibernate, Akka and Spring.
+Prior to my full-time pure FP in Scala experience, which began in Feb-2017, I had built web services using
+ Jersey (Java), Play, Lift, Hibernate, Akka and Spring.
 
 Born and raised in Pennsylvania, I completed my Bachelor's of Science in Computer Engineering from Villanova University.
 Next, I earned my Masters of Engineering in Networking from University of Pennsylvania while working full time.
@@ -20,30 +30,34 @@ Between Jan-2019 and April-2021 my role was Technical Lead. Essentially my role 
     * 20% pairing (coding or collaborating) with my teammates
     * 10% communicating with management and other teamms
 
+## Importance of Team Ownership and Maintainability
+
 Having worked in that role, I've come to appreciate the importance of team maintainability. A team should own a code-base,
-not an individual. A team is on-call, not an individual. The latter does not scale. From the ~15 or so http4s web application
-repositories that I either built or maintained professionally, I firmly believe that significant differences across repositories
-is a liability. To clarify, I've worked in code-bases ranging from "tagless final", i.e. programming to an `F[_]` interface,
-`EitherT`-based, as well as `Kleisli` everywhere.
+not an individual. A team is on-call, not an individual. Relying upon individuals to own and maintain code-bases does not scale.
+
+From the ~15 or so http4s production, customer-serving web application repositories that I either built from scratch or
+maintained professionally, I firmly believe that significant differences across repositories is a liability. To clarify,
+I've worked in code-bases ranging from "tagless final", i.e. programming to an `F[_]` interface, `EitherT`-based,
+as well as `Kleisli` everywhere.
 
 Given that I strongly prefer standardization, let me acknowledge the importance of adaptability and creativity that
-Software Engineers savor. Although I favor standardization, I fully understand that standing still or rotting is not an option. It's
-critical to improve the code-base based on the team's experience and future maintenance. Given that Software Engineering
-is both an Art and Science, clearly Engineers desire to express themselves via their craft, code. So, in my experience,
-if my teammate wanted to introduce a significant change to the code-base, it was welcomed, but also responsibility of
-that teammate to educate the team on the benefits.
+Software Engineers savor. Although I favor standardization, I fully understand that standing still or rotting is not an
+option. It's critical to improve the code-base based on the team's experience and future maintenance. Given that Software
+Engineering is both an Art and Science, clearly Engineers desire to express themselves via their craft, code. So, in my
+experience, if my teammate wanted to introduce a significant change to the code-base, it was welcomed, but also
+responsibility of that teammate to educate the team on the benefits.
 
 I live in Miami, Florida.
 
-## Intended Audience
+## Intended Audience of Book
 
 My intended audience is intermediate software developers, namely those with some experience in functional programming.
 
 ## Why I'm Writing This Book
 
-With pure FP in Scala, especially using http4s, I have the most confidence that my code does what I've intended for it to
-do. In other words, pure FP in Scala is a powerful tool for enhancing the programmer's ability to reason about his/her
-code. That, I firmly believe, is a significant competitive advantage in business.
+When building pure FP web services in http4s, I have the most confidence that my code does what I've intended. In other
+words, pure FP in Scala is a powerful tool for enhancing the programmer's ability to reason about his/her code. That, I
+firmly believe, is a significant competitive advantage in business.
 
 http4s's [docs](https://http4s.org/v0.21/) have helped me to use its library.
 
