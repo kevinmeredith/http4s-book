@@ -5,6 +5,7 @@ This chapter covers the following topics:
 - Introduction to the Author
 - Importance of Team Ownership and Maintainability
 - Intended Audience of Book
+- Source Code Repository of Book
 - Why I'm Writing This Book
 
 ## Introduction to the Author
@@ -52,6 +53,10 @@ I live in Miami, Florida.
 ## Intended Audience of Book
 
 My intended audience is intermediate software developers, namely those with some experience in functional programming.
+
+## Source Code Repository of Book
+
+This book's source, including the actual writing and code, is at https://github.com/kevinmeredith/http4s-book.
 
 ## Why I'm Writing This Book
 
