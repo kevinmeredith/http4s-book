@@ -27,7 +27,7 @@ trait Client[F[_]] {
 In short, given a `Request[F]`, `Client#run` will return a `Resource[F, Response[F]]`.
 
 As the `cats-effect`'s [docs](https://typelevel.org/cats-effect/docs/2.x/datatypes/resource) note, `Resource`
-"effectfully allocates and releases a resource." This means that, `cats.effect.Resource`, will properly dispose of any
+"effectfully allocates and releases a resource." This means that `cats.effect.Resource` will properly dispose of any
 resources for the `Response[F]`.
 
 Let's look at an example to show how the `http4s` `Client[F]` API works.
