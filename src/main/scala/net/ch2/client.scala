@@ -108,7 +108,7 @@ object Messages {
                 // In this case, the "MonadError[F, Throwable]" allows for raising
                 // or handling Throwable's.
                 // http4s's code docs explain:
-                //  > A type that can be used to decode a Message EntityDecoder
+                //  > A type that can be used to decode a Message. EntityDecoder
                 //  > is used to attempt to decode a Message returning the
                 //  > entire resulting A.
                 // In this case, org.http4s.circe.CirceEntityDecoder.circeEntityDecoder
@@ -176,7 +176,8 @@ object Messages {
       //  know exactly why an error occurred. In this case, it's important
       //  to know that as 'GetMessagesError' occurred, including the
       //  message and underlying stack trace.
-      // As a result, let's use MonadError[F, Throwable]#adaptError:
+      // As a result, to handle the remaining types of failures, let's use
+      // MonadError[F, Throwable]#adaptError:
       // > override def adaptError[A](fa: F[A])(pf: PartialFunction[E, E]): F[A]
       // In this code, the error "E" type is Throwable, and
       // the "A" is "List[Message]." Note that "adaptError" is an extension

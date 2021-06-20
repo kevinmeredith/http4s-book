@@ -133,7 +133,7 @@ final class clientspec extends CatsEffectSuite {
     actual.attempt.map {
       case Right(x)                     => fail(s"Expected Throwable, but got Right($x)")
       case Left(GetMessagesError(_, _)) => assert(true)
-      case Left(e)                      => fail(s"Expected Throwable of type GetMessagesError, but got $e")
+      case Left(e)         => fail(s"Expected Left(GetMessagesError), but got $e")
     }
   }
 }

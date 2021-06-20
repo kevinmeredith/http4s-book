@@ -3,9 +3,7 @@
 This chapter covers the following topics:
 
   - Brief Definition of `org.http4s.client.Client[F]`
-  - Builing an HTTP Client Example
-  - Testing Example
-  - Tagless Final
+  - Building and Testing an HTTP Client Example
   - Effect Types for Testing?
 
 ## Brief Definition of `org.http4s.client.Client[F]`
@@ -32,43 +30,46 @@ resources for the `Response[F]`.
 
 Let's look at an example to show how the `http4s` `Client[F]` API works.
 
-## Builing an HTTP Client Example
+## Building and Testing an HTTP Client Example
 
-```scala
-```
-
-## Testing Example
+### Testing Example
 
 When I first used `http4s` professionally, I had come from building web applications using the [Play Framework](https://www.playframework.com/). The
 simplicity of testing `http4s`'s `Client[F]`'s attracted me further to this HTTP library.
 
-Let's look at an example. There's a single API: `GET /messages?topic={name}`. It returns an array of messages for a given topic.
-A message has a "value," which is text, and "timestamp," which is the time at which the message occurred. Its data type is
-Long since it's in milliseconds since the Epoch in Linux. Note that the `topic` query parameter is required.
+Let's look at an example. Let's build a client that will consume from a single API: `GET /messages?topic={name}`. This
+API returns an array of messages for a given topic. A message has a "value," which is text, and "timestamp," which is
+the time at which the message occurred. Its data type is Long since it's in milliseconds since the Epoch in Linux. Note
+that the `topic` query parameter is required.
 
 Example:
 
 ```json
-{
-    "value"     : "Hello world",
-    "timestamp" : 1619401781088
-}
+[
+    {
+        "value"     : "Hello world",
+        "timestamp" : 1619401781088
+    }
+]
 ```
 
-Before we dive into the `http4s` `Client[F]` example, let's discuss "Tagless Final" in Scala.
+Before we dive into how to build such a client in `http4s`, let's discuss "Tagless Final" in Scala.
 
-## Tagless Final
+### Tagless Final
 
 A well-known principle of Software Engineering is "program to an interface, not implementation." This point is important
-since programming to an interface results in more maintainable and testable code. The "Tagless Final" approach follows
-this principle.
+since programming to an interface results in more maintainable and testable code. The "Tagless Final" approach supports
+adherence to this principle.
 
 In short, this approach's `interface` consists of using a Scala `trait` with a type parameter having a [kind](https://eed3si9n.com/herding-cats/Kinds.html)
  of `* -> *`.
 
-Let's look at an example:
+Let's now build a Tagless Final interface for getting messages from a given topic. The implementation of this interface
+will need an `http4s` client as we'll be calling an API over HTTP.
 
 ```scala
+package net.ch2
+
 import cats._
 import cats.effect.Sync
 import cats.implicits._
@@ -177,7 +178,7 @@ object Messages {
                 // In this case, the "MonadError[F, Throwable]" allows for raising
                 // or handling Throwable's.
                 // http4s's code docs explain:
-                //  > A type that can be used to decode a Message EntityDecoder
+                //  > A type that can be used to decode a Message. EntityDecoder
                 //  > is used to attempt to decode a Message returning the
                 //  > entire resulting A.
                 // In this case, org.http4s.circe.CirceEntityDecoder.circeEntityDecoder
@@ -245,7 +246,8 @@ object Messages {
       //  know exactly why an error occurred. In this case, it's important
       //  to know that as 'GetMessagesError' occurred, including the
       //  message and underlying stack trace.
-      // As a result, let's use MonadError[F, Throwable]#adaptError:
+      // As a result, to handle the remaining types of failures, let's use
+      // MonadError[F, Throwable]#adaptError:
       // > override def adaptError[A](fa: F[A])(pf: PartialFunction[E, E]): F[A]
       // In this code, the error "E" type is Throwable, and
       // the "A" is "List[Message]." Note that "adaptError" is an extension
@@ -340,7 +342,8 @@ final class clientspec extends CatsEffectSuite {
     // as well as the supplied JSON payload.
     val testClient: Client[IO] = stubbedAPIClient(Status.Ok, responsePayload)
 
-    // Create an implementation of the Messages[IO] interface by providing the 'testClient'.
+    // Create an implementation of the Messages[IO] interface by providing
+    //  the 'testClient'.
     val messagesImpl: Messages[IO] = Messages.impl[IO](
       testClient,
       TestUri
@@ -376,6 +379,9 @@ final class clientspec extends CatsEffectSuite {
     //  be a Long Epoch Milli, not a String
     val invalidTimestamp: String = "oops-not-an-epoch-milli"
 
+    // The single message is invalid given that 'invalidMessageValue'
+    // is an Int, whereas the DTO Decoder expects a String.
+    // Also, invalidTimestamp is not a Long (for Epoch Mill), but rather a String.
     val invalidSingleMessage = Json.obj(
       "value"     := invalidMessageValue,
       "timestamp" := invalidTimestamp
@@ -383,8 +389,11 @@ final class clientspec extends CatsEffectSuite {
 
     val responsePayload = Json.arr(invalidSingleMessage)
 
+    // Build a client that returns an HTTP-200 w/ the invalid JSON Payload
     val testClient: Client[IO] = stubbedAPIClient(Status.Ok, responsePayload)
 
+    // Return an instance of Messages that should fail due to a failure to decode
+    // the JSON payload
     val messagesImpl = Messages.impl[IO](
       testClient,
       TestUri
@@ -393,32 +402,35 @@ final class clientspec extends CatsEffectSuite {
     val actual: IO[List[Messages.Message]] =
       messagesImpl.getMessages("test-input-that-does-not-matter")
 
+    // Pass the test if the executed effect produces a 'GetMessagesError'.
     actual.attempt.map {
       case Right(x)                     => fail(s"Expected Throwable, but got Right($x)")
       case Left(GetMessagesError(_, _)) => assert(true)
-      case Left(e)                      => fail(s"Expected Throwable of type GetMessagesError, but got $e")
+      case Left(e)         => fail(s"Expected Left(GetMessagesError), but got $e")
     }
   }
 }
 ```
 
-Lastly, let's run the tests with `sbt:test`:
+Lastly, let's run the tests:
 
 ```scala
 sbt:http4s-book> testOnly net.ch2.clientspec
-[info] compiling 1 Scala source to /Users/kevinmeredith/Workspace/http4s-book/target/scala-2.12/test-classes ...
+[info] compiling 1 Scala source to
+  /Users/kevinmeredith/Workspace/http4s-book/target/scala-2.12/test-classes ...
 net.ch2.clientspec:
   + return List of messages for HTTP-200 Response w/ well-formed payload 0.992s
-  + raise an error for a malformed payload ('value' is not a String and 'timestamp' is not valid either 0.017s
+  + raise an error for a malformed payload
+      ('value' is not a String and 'timestamp' is not valid either 0.017s
 [info] Passed: Total 2, Failed 0, Errors 0, Passed 2
 [success] Total time: 2 s, completed Jun 19, 2021 10:44:09 PM
 ```
 
 ## Effect Types for Testing?
 
-One argument of the Tagless Final approach, which provides a polymorphic `F[_]` for the effect type, is that it enables
-using a type other than `cats.effect.IO` for testing. Although this is true, in my 4 years of professional
-experience building web services in production, I've 99% of the time used `cats.effect.IO`.
+I've heard that one extra benefit of the Tagless Final approach, which provides a polymorphic `F[_]` for the effect type,
+is that it enables using a type other than `cats.effect.IO` for testing. Although this is true, in my 4 years of
+professional experience building pure web services in production, I've 99% of the time used `cats.effect.IO`.
 
 It's a natural choice since that's what will be used in the real-world instance of the application. An additional
 argument for using `cats.effect.IO` as the effect type is https://github.com/typelevel/munit-cats-effect. That library

@@ -22,7 +22,8 @@ object server {
   * GET /messages  - return all messages
     * No authorization requirements
     * Responses:
-        * HTTP-200 Retrieved all of the message - { "content" : String, "timestamp" : String ISO861 }
+        * HTTP-200 Retrieved all of the message -
+           { "content" : String, "timestamp" : String ISO861 }
         * HTTP-500 Something went wrong on server
   * POST /messages - create a message
     * Must include x-secret header whose value equals the server's secret
@@ -80,8 +81,9 @@ object server {
   // of this choice is that RuntimeException is not sealed, i.e. the compiler
   // cannot warn us if we fail to handle a particular sub-class of RuntimeException.
   // The reason for Throwable is, as
-  // https://github.com/typelevel/cats-effect/blob/v2.5.1/docs/datatypes/io.md#error-handling explains,
-  // the MonadError[IO, Throwable] instance means that any error handling will be against the Throwable type.
+  // https://github.com/typelevel/cats-effect/blob/v2.5.1/docs/datatypes/io.md#error-handling
+  // explains, the MonadError[IO, Throwable] instance means that any error handling will be
+  // against the Throwable type.
   sealed abstract class ApiError() extends RuntimeException
   object ApiError {
     case object MissingXSecretHeader                                  extends ApiError
