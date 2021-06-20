@@ -402,8 +402,16 @@ final class clientspec extends CatsEffectSuite {
 }
 ```
 
+Lastly, let's run the tests with `sbt:test`:
+
 ```scala
-// TODO - Show successful run of tests
+sbt:http4s-book> testOnly net.ch2.clientspec
+[info] compiling 1 Scala source to /Users/kevinmeredith/Workspace/http4s-book/target/scala-2.12/test-classes ...
+net.ch2.clientspec:
+  + return List of messages for HTTP-200 Response w/ well-formed payload 0.992s
+  + raise an error for a malformed payload ('value' is not a String and 'timestamp' is not valid either 0.017s
+[info] Passed: Total 2, Failed 0, Errors 0, Passed 2
+[success] Total time: 2 s, completed Jun 19, 2021 10:44:09 PM
 ```
 
 ## Effect Types for Testing?
