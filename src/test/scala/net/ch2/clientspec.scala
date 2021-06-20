@@ -106,6 +106,9 @@ final class clientspec extends CatsEffectSuite {
     //  be a Long Epoch Milli, not a String
     val invalidTimestamp: String = "oops-not-an-epoch-milli"
 
+    // The single message is invalid given that 'invalidMessageValue'
+    // is an Int, whereas the DTO Decoder expects a String.
+    // Also, invalidTimestamp is not a Long (for Epoch Mill), but rather a String.
     val invalidSingleMessage = Json.obj(
       "value"     := invalidMessageValue,
       "timestamp" := invalidTimestamp
@@ -113,8 +116,11 @@ final class clientspec extends CatsEffectSuite {
 
     val responsePayload = Json.arr(invalidSingleMessage)
 
+    // Build a client that returns an HTTP-200 w/ the invalid JSON Payload
     val testClient: Client[IO] = stubbedAPIClient(Status.Ok, responsePayload)
 
+    // Return an instance of Messages that should fail due to a failure to decode
+    // the JSON payload
     val messagesImpl = Messages.impl[IO](
       testClient,
       TestUri
