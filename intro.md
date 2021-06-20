@@ -6,6 +6,7 @@ This chapter covers the following topics:
 - Importance of Team Ownership and Maintainability
 - Intended Audience of Book
 - Source Code Repository of Book
+- Note on Scala and http4s Version
 - Why I'm Writing This Book
 
 ## Introduction to the Author
@@ -57,6 +58,13 @@ My intended audience is intermediate software developers, namely those with some
 ## Source Code Repository of Book
 
 This book's source, including the actual writing and code, is at https://github.com/kevinmeredith/http4s-book.
+
+## Note on Scala and http4s Version
+
+This book's code uses Scala `2.12` and `http4s` `0.21.x`.
+
+All of my professional experience with Scala has been on version 2.x. As of this book's writing, Jun-2021,
+https://http4s.org/versions/ notes that its `0.21.24` version is supported on Scala `2.12` and `2.13`.
 
 ## Why I'm Writing This Book
 
