@@ -22,10 +22,10 @@ In my eight years of professional Scala experience, I've worked with multiple we
 in Scala and Java: Jersey, Play, spray, Lift, http4s and akka-http.
 
 I strongly favor http4s over the others due to its embrace of Pure Functional Programming (FP) and the fact that it's a
-lightweight library not a heavy framework.
+library rathe rthan a heavy framework.
 
 Pure FP offers a significant competitive advantage to companies as it enables Software Engineers to more easily reason
-about their code. Knowing what your code does is clearly a critical tool for quickly deploying accurate, defect-free code
-to production.
+about their code. Knowing what your code does and building to your intent is clearly a critical tool for quickly
+deploying accurate, defect-free code to production.
 
-
+\newpage

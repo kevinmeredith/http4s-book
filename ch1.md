@@ -2,7 +2,7 @@
 
 This chapter covers the following topics:
 
- - Introduction to http4s and `org.http4s.HttpRoutes[F]
+ - Introduction to http4s and `org.http4s.HttpRoutes[F]`
  - HttpRoutes[F] Example
 
 ## Introduction to http4s and `org.http4s.HttpRoutes[F]`
@@ -25,8 +25,8 @@ From the "getting started":
 This does not belong anywhere near getting started.
 ```
 
-I appreciate the sentiment of the author's tweet, yet the documentation is no doubt correct. Let's walk through this
-explanation in-depth.
+As a scientist, I appreciate the sentiment of the author's tweet, yet the documentation is no doubt correct.
+Let's walk through this explanation in-depth.
 
 [cats](https://github.com/typelevel/cats) documents [Kleisli](https://typelevel.org/cats/datatypes/kleisli.html), [OptionT](https://typelevel.org/cats/datatypes/optiont.html),
 and many other concepts. Please read those descriptions if you're not comfortable with them.
@@ -81,11 +81,13 @@ res1: Option[org.http4s.Response[cats.effect.IO]] =
    Some(Response(status=200, headers=Headers()))
 ```
 
-In the following, note that `None` will be returned. That's because, upon execution of the `IO`,
-the given `Request[IO]` does not apply or match the `HttpRoutes[IO]`.
+In the following, note that `None` will be returned. That's because,
+upon execution of the `IO`, the given `Request[IO]` does not apply
+or match the `HttpRoutes[IO]`.
 
 ```scala
-scala> val barRequest: Request[IO] = Request[IO](uri = uri"www.a.com").withPathInfo("/bar")
+scala> val barRequest: Request[IO] =
+   Request[IO](uri = uri"www.a.com").withPathInfo("/bar")
 barRequest: org.http4s.Request[cats.effect.IO] =
     Request(method=GET, uri=/bar, headers=Headers())
 
@@ -93,8 +95,8 @@ scala> fooService.run(barRequest).value.unsafeRunSync
 res2: Option[org.http4s.Response[cats.effect.IO]] = None
 ```
 
-I previously mentioned the power of composition. Let's now look at how we can compose two `HttpRoutes[IO]` into a single
-one.
+I previously mentioned the power of composition. Let's now look at how we can
+compose two `HttpRoutes[IO]` into a single one.
 
 ```scala
 scala> import cats.implicits._
@@ -121,8 +123,8 @@ res5: Option[org.http4s.Response[cats.effect.IO]] =
   Some(Response(status=204, headers=Headers()))
 ```
 
-With the aim of making the optionality piece crystal clear, let's look at the signature of the `HttpRoutes#of[IO]`
- method:
+With the aim of making the optionality piece crystal clear, let's look at the
+signature of the `HttpRoutes#of[IO]` method:
 
 
 ```scala
@@ -133,8 +135,8 @@ With the aim of making the optionality piece crystal clear, let's look at the si
 
 Before we proceed, let's look at the type classes, `Defer` and `Applicative`.
 
-The [cats](https://github.com/typelevel/cats/blob/v2.4.2/core/src/main/scala/cats/Defer.scala#L6-L22) code includes
-the following comment:
+https://github.com/typelevel/cats/blob/v2.4.2/core/src/main/scala/cats/Defer.scala#L6-L22
+code includes the following comment:
 
 > Defer is a type class that shows the ability to defer creation
 > ...
@@ -146,7 +148,8 @@ trait Defer[F[_]] {
 }
 ```
 
-[cats](https://github.com/typelevel/cats/blob/v2.4.2/core/src/main/scala/cats/Applicative.scala#L18-L31) defines `Applicative`.
+https://github.com/typelevel/cats/blob/v2.4.2/core/src/main/scala/cats/Applicative.scala#L18-L31
+ defines `Applicative`.
 
 ```scala
 trait Applicative[F[_]] extends Apply[F] ... {
@@ -155,17 +158,24 @@ trait Applicative[F[_]] extends Apply[F] ... {
 }
 ```
 
-The ability to compose `HttpRoutes[IO]` is significant. In my professional experience, I've found building separate, small `HttpRoutes[IO]`
-to be better than building large `HttpRoutes[IO]`. By "large" and "small," I'm talking about the number of pattern match cases.
+The ability to compose `HttpRoutes[IO]` is significant. In my professional experience,
+I've found building separate, small `HttpRoutes[IO]` to be better than building large
+`HttpRoutes[IO]`. By "large" and "small," I'm talking about the number of pattern
+ match cases.
 
 Building separate, small `HttpRoutes[IO]`, offers the following benefits:
 
  - Readability
-    - understanding an `HttpRoutes[IO]` with 1 path, e.g. GET /foo, is easier to understand than 10 paths.
+    - understanding an `HttpRoutes[IO]` with 1 path, e.g. GET /foo, is
+      easier to understand than 10 paths.
  - Testability
-    - writing a test against an `HttpRoutes[IO]` with 1 path will produce fewer lines of code than one
-      with 10 path test.
+    - writing a test against an `HttpRoutes[IO]` with 1 path will produce
+      fewer lines of code than one with 10 path test.
 
-Overall, building separate, small `HttpRoutes[IO]` produces code that's easier to maintain. Otherwise, the risk exists,
-which I've encountered first-hand and been guilty of, of teams building bad habits of just always adding to
-an existing `HttpRoutes[IO]`. This approach is risky since it likely will reduce understandability and testability.
+Overall, building separate, small `HttpRoutes[IO]` produces code that's easier
+to maintain. Otherwise, the risk exists, which I've encountered first-hand and
+been guilty of propagating, of teams building bad habits of just always adding to an existing
+`HttpRoutes[IO]`. This approach is risky since it likely will reduce understandability
+and testability.
+
+\newpage

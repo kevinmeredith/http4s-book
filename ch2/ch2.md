@@ -1,4 +1,4 @@
-# Chapter 2. Building an HTTP Client to Consume from an API
+# Chapter 2. Building and Testing an HTTP Client to Consume from an API
 
 This chapter covers the following topics:
 
@@ -416,22 +416,22 @@ Lastly, let's run the tests:
 
 ```scala
 sbt:http4s-book> testOnly net.ch2.clientspec
-[info] compiling 1 Scala source to
-  /Users/kevinmeredith/Workspace/http4s-book/target/scala-2.12/test-classes ...
 net.ch2.clientspec:
-  + return List of messages for HTTP-200 Response w/ well-formed payload 0.992s
-  + raise an error for a malformed payload
-      ('value' is not a String and 'timestamp' is not valid either 0.017s
+  + return List of messages for HTTP-200 Response w/ well-formed payload
+  + raise an error for a malformed payload ('value' is not a String
+      and 'timestamp' is not valid either
 [info] Passed: Total 2, Failed 0, Errors 0, Passed 2
 [success] Total time: 2 s, completed Jun 19, 2021 10:44:09 PM
 ```
 
 ## Effect Types for Testing?
 
-I've heard that one extra benefit of the Tagless Final approach, which provides a polymorphic `F[_]` for the effect type,
+One promoted secondary benefit of the Tagless Final approach, which provides a polymorphic `F[_]` for the effect type,
 is that it enables using a type other than `cats.effect.IO` for testing. Although this is true, in my 4 years of
 professional experience building pure web services in production, I've 99% of the time used `cats.effect.IO`.
 
 It's a natural choice since that's what will be used in the real-world instance of the application. An additional
 argument for using `cats.effect.IO` as the effect type is https://github.com/typelevel/munit-cats-effect. That library
 enables building tests that compare values of type `IO[A]`.
+
+\newpage

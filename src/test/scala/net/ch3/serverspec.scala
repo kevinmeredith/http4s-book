@@ -3,10 +3,10 @@ package net.ch3
 import cats.effect.IO
 import io.circe.Json
 import io.circe.syntax._
+
 import java.time.Instant
 import munit.CatsEffectSuite
-import net.ch3.models.Secret
-import net.ch3.server.Messages
+import net.ch3.server.{Messages, Secret}
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.circe.{jsonDecoder, jsonEncoder}
@@ -33,13 +33,13 @@ final class serverspec extends CatsEffectSuite {
 
   // Since IO[A] is covariant, any function that requires an IO[A] will accept
   // an IO[Nothing] since Nothing is at the bottom of Scala's class hierarchy.
-  // See https://github.com/typelevel/cats-effect/blob/v2.5.1/core/shared/src/main/scala/cats/effect/IO.scala#L85
   // In short, it's convenient to use
   // val notUsed: IO[Nothing]
   //    rather than
   // def notUsed[A] : IO[A]
   // as the former is more concise.
-  private val notUsed: IO[Nothing] = IO.raiseError(new RuntimeException("not used - should not be called!"))
+  private val notUsed: IO[Nothing] =
+    IO.raiseError(new RuntimeException("not used - should not be called!"))
 
   // Although it won't be used, it's necessary to create a Uri for constructing an HTTP Request
   private val TestUri: Uri = uri"http://www.only-used-for-testing.com"
@@ -66,7 +66,8 @@ final class serverspec extends CatsEffectSuite {
     val messagesImpl: Messages[IO] =
       stubMessagesImpl(IO.pure(messages), notUsed)
 
-    val trustedAuthToken: Secret = Secret("not used since GET does not require the x-secret header")
+    val trustedAuthToken: Secret =
+      Secret("not used since GET does not require the x-secret header")
 
     // Build the HttpRoutes[IO] by calling server.routes.
     val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
@@ -78,14 +79,17 @@ final class serverspec extends CatsEffectSuite {
     )
 
     val result: IO[(Status, Json)] = for {
-      // Apply the HttpRequest to routes#run, which will return an OptionT[IO, Response[F]].
-      // Again, recall HttpRoutes[IO] is simply a type alias for
-      // Kleisli[OptionT[IO, *], Request[IO], Response[IO]]
+      // Apply the HttpRequest to routes#run, which will return an
+      // OptionT[IO, Response[F]]. Again, recall HttpRoutes[IO] is
+      // simply a type alias for Kleisli[OptionT[IO, *], Request[IO], Response[IO]]
       // By applying the Request[IO], our result is OptionT[IO, Response[IO]].
-      // To get at the IO[Response[IO]], I call OptionT#getOrElseF, which will raise the given
-      // error if the value of the OptionT type is empty.
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
-      // Decode the HTTP Response to JSON. In this case, the payload will attempted to be decoded as JSON
+      // To get at the IO[Response[IO]], I call OptionT#getOrElseF, which
+      // will raise the given error if the value of the OptionT type is empty.
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
+      // Decode the HTTP Response to JSON. In this case,
+      // the payload will attempted to be decoded as JSON
       json <- resp.as[Json]
     } yield (resp.status, json)
 
@@ -97,7 +101,10 @@ final class serverspec extends CatsEffectSuite {
         assertEquals(
           json,
           Json.arr(
-            Json.obj("content" := content, "timestamp" := "1970-01-01T00:00:00")
+            Json.obj(
+              "content" := content,
+              "timestamp" := "1970-01-01T00:00:00"
+            )
           )
         )
     }
@@ -109,9 +116,11 @@ final class serverspec extends CatsEffectSuite {
     val messagesImpl: Messages[IO] =
       stubMessagesImpl(notUsed, notUsed)
 
-    val trustedAuthToken: Secret = Secret("not used since the request does not include an x-secret header")
+    val trustedAuthToken: Secret =
+      Secret("not used since the request does not include an x-secret header")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
+    val routes: HttpRoutes[IO] =
+      server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
 
     // Build a POST with a JSON payload
     val request: Request[IO] = Request[IO](
@@ -122,7 +131,9 @@ final class serverspec extends CatsEffectSuite {
     )
 
     val result: IO[Status] = for {
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
     } yield resp.status
 
     // Verify the HTTP Response's status = 401
@@ -131,9 +142,11 @@ final class serverspec extends CatsEffectSuite {
     }
   }
 
-  test("POST /messages returns a 401 for a request including a x-secret header with the wrong value") {
-    // Observe that both IO arguments are notUsed since Messages#create should
-    // never be called since the request's x-secret header does not equal the server's secret.
+  test("POST /messages returns a 403 for a request including " +
+    "a x-secret header with the wrong value") {
+    // Observe that both IO arguments are notUsed since
+    // Messages#create should never be called since the request's
+    // x-secret header does not equal the server's secret.
     val messagesImpl: Messages[IO] =
       stubMessagesImpl(notUsed, notUsed)
 
@@ -150,11 +163,13 @@ final class serverspec extends CatsEffectSuite {
       )
 
     val result: IO[Status] = for {
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
     } yield resp.status
 
     result.map { s: Status =>
-      assertEquals(s, Status.Unauthorized)
+      assertEquals(s, Status.Forbidden)
     }
   }
 
@@ -177,7 +192,9 @@ final class serverspec extends CatsEffectSuite {
       )
 
     val result: IO[Status] = for {
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
     } yield resp.status
 
     result.map { s: Status =>

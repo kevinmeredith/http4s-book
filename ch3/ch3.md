@@ -1,4 +1,4 @@
-# Chapter 3. Building a Web Server
+# Chapter 3. Building and Testing a Web Server
 
 This chapter covers the following topics:
 
@@ -50,6 +50,8 @@ Let's look into an example of building a server with two routes:
         - HTTP-403 Forbidden - x-secret header's value was wrong
         - HTTP-500 Something went wrong on server
 
+Note that Chapter 3's server is entirely separate from Chapter 2's code.
+
 Consider the following commented code for building the server.
 
 ```scala
@@ -68,26 +70,9 @@ import org.http4s.dsl.Http4sDsl
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
-import net.ch3.models.Secret
 import org.http4s.util.CaseInsensitiveString
 
 object server {
-
-  /*
-  * GET /messages  - return all messages
-    * No authorization requirements
-    * Responses:
-        * HTTP-200 Retrieved all of the message -
-           { "content" : String, "timestamp" : String ISO861 }
-        * HTTP-500 Something went wrong on server
-  * POST /messages - create a message
-    * Must include x-secret header whose value equals the server's secret
-    * Responses:
-        * HTTP-200 Created the message
-        * HTTP-401 Unauthorized (missing or invalid x-secret Header)
-        * HTTP-403 Forbidden - Supplied secret does not match the expected value
-        * HTTP-500 Something went wrong on server
-   */
 
   object Messages {
 
@@ -135,10 +120,8 @@ object server {
   // You may be asking why RuntimeException is used. A valid criticism
   // of this choice is that RuntimeException is not sealed, i.e. the compiler
   // cannot warn us if we fail to handle a particular sub-class of RuntimeException.
-  // The reason for Throwable is, as
-  // https://github.com/typelevel/cats-effect/blob/v2.5.1/docs/datatypes/io.md#error-handling
-  // explains, the MonadError[IO, Throwable] instance means that any error handling will be
-  // against the Throwable type.
+  // The reason for Throwable is the MonadError[IO, Throwable] instance means that
+  // any error handling will be against the Throwable type.
   sealed abstract class ApiError() extends RuntimeException
   object ApiError {
     case object MissingXSecretHeader                                  extends ApiError
@@ -146,27 +129,38 @@ object server {
     case object IncorrectSecretHeaderValue                            extends ApiError
   }
 
+  // Represents the private secret that protects the
+  // POST /messages API
+  final case class Secret(value: String)
+
   // Define a case class for capturing a 'create messge' request.
-  // Effectively it's a Data Transfer Object (see https://en.wikipedia.org/wiki/Data_transfer_object).
-  // I opted against defining a Decoder for Messages.Message, which requires a (String + Timestamp).
-  // The request simply includes a String message, and then, on the server I filled in the Timestamp
-  // with "now."
+  // Effectively it's a Data Transfer Object.
+  // See https://en.wikipedia.org/wiki/Data_transfer_object
+  // I opted against defining a Decoder for Messages.Message,
+  // which requires a (String + Timestamp). The request simply
+  // includes a String message, and then, on the server I filled
+  // in the Timestamp with "now."
   private final case class CreateMessageRequest(content: String)
   private object CreateMessageRequest {
-    implicit val decoder: Decoder[CreateMessageRequest] = new Decoder[CreateMessageRequest] {
-      override def apply(c: HCursor): Result[CreateMessageRequest] =
-        c.downField("content")
-          .as[String]
-          .map{ str: String => CreateMessageRequest(str) }
-    }
+    implicit val decoder: Decoder[CreateMessageRequest] =
+      new Decoder[CreateMessageRequest] {
+        override def apply(c: HCursor): Result[CreateMessageRequest] =
+          c.downField("content")
+            .as[String]
+            .map{ str: String => CreateMessageRequest(str) }
+      }
   }
 
   // http4s.org defines a Middleware:
-  // > A middleware is a wrapper around a service that provides a means of manipulating the
-  // > Request sent to service, and/or the Response returned by the service.
-  // In this case, this middleware handles any thrown ApiException's, turning them into
-  // HTTP Responses.
-  private def middleware[F[_] : Sync](routes: HttpRoutes[F], log: String => F[Unit]): HttpRoutes[F] =
+  // > A middleware is a wrapper around a service that provides a means
+  // > of manipulating the Request sent to service, and/or the Response
+  // > returned by the service.
+  // In this case, this middleware handles any thrown ApiException's, turning
+  // them into HTTP Responses.
+  private def middleware[F[_] : Sync](
+    routes: HttpRoutes[F],
+    log: String => F[Unit]
+  ): HttpRoutes[F] =
     HttpRoutes.apply { req: Request[F] =>
       routes
         .run(req)
@@ -175,15 +169,16 @@ object server {
           // that function notes:
           // > Lifts the F[A] Functor into an OptionT[F, A].
           // In this case, the A is a Response[F].
-          // Recall, from the beginning of this book, that HttpRoutes[F] is a type alias for
-          // Kleisli[OptionT[F, *], Request[F], Response[F]]. Go back to that chapter if
-          // if that type is not clear.
+          // Recall, from the beginning of this book, that HttpRoutes[F]
+          // is a type alias for Kleisli[OptionT[F, *], Request[F], Response[F]].
+          // Go back to that chapter if that type is not clear.
           case apiError: ApiError => apiError match {
             case ApiError.InvalidCreateMessageRequestPayload(t) =>
               OptionT.liftF(
-                log(s"InvalidCreateMessageRequestPayloadResponse with Throwable: ${t.getMessage}").as(
-                  Response[F](status = Status.BadRequest)
-                )
+                log(s"InvalidCreateMessageRequestPayloadResponse: ${t.getMessage}")
+                  .as(
+                    Response[F](status = Status.BadRequest)
+                  )
               )
             case ApiError.MissingXSecretHeader =>
               OptionT.liftF(
@@ -194,7 +189,7 @@ object server {
             case ApiError.IncorrectSecretHeaderValue =>
               OptionT.liftF(
                 log("IncorrectSecretHeaderValue").as(
-                  Response[F](status = Status.Unauthorized)
+                  Response[F](status = Status.Forbidden)
                 )
               )
           }
@@ -215,7 +210,10 @@ object server {
 
   // routesHelper is the workhorse method, i.e. actually defines which HTTP Requests
   // the service will handle.
-  private def routesHelper[F[_] : Http4sDsl : Sync](message: Messages[F], secret: Secret): HttpRoutes[F] = {
+  private def routesHelper[F[_] : Http4sDsl : Sync](
+      message: Messages[F],
+      secret: Secret
+  ): HttpRoutes[F] = {
     val secretHeader: CaseInsensitiveString = CaseInsensitiveString("x-secret")
 
     // Add a helper method for extracting the 'x-secret' header
@@ -239,9 +237,11 @@ object server {
     // HttpRoutes#of accepts a single argument:
     // > PartialFunction[Request[F], F[Response[F]]]
     // Observe that it's a partial function, i.e. does not handle all inputs.
-    // This signature makes sense as an HTTP Service accepts a Request and returns a Response.
+    // This signature makes sense as an HTTP Service accepts
+    // a Request and returns a Response.
     HttpRoutes.of[F] {
-      // This service handles GET /messages using the http4s DSL, available via the above 'import dsl._'.
+      // This service handles GET /messages using the http4s DSL,
+      // available via the above 'import dsl._'.
       case GET -> Root / "messages"  =>
         // Get a list of messages
         val messages: F[List[Messages.Message]] =
@@ -253,13 +253,19 @@ object server {
           // > def withEntity[T](b: T)(implicit w: EntityEncoder[F, T])
           // In this case, the T is List[Messages.Message].
           // How is EntityEncoder[F, List[Messages.Message]] is in scope?
-          // The above import, org.http4s.circe.CirceEntityEncoder.circeEntityEncoder,
+          // The above import,
+          // org.http4s.circe.CirceEntityEncoder.circeEntityEncoder,
           // has the following signature:
-          // > implicit def circeEntityEncoder[F[_], A: Encoder]: EntityEncoder[F, A]
-          // We've defined an Encoder[Messages.Message] within the Messages.Message's object.
+          // > implicit def circeEntityEncoder[
+          // >  F[_],
+          // >  A: Encoder
+          // >  ]: EntityEncoder[F, A]
+          // We've defined an Encoder[Messages.Message] within the
+          // Messages.Message's object.
           // circe provides an implicit for lifting an Encoder[A] into a Encoder[List[A]]:
-          // > implicit final def encodeList[A](implicit encodeA: Encoder[A]): AsArray[List[A]] =
-          // https://github.com/circe/circe/blob/v0.13.0/modules/core/shared/src/main/scala/io/circe/Encoder.scala#L349
+          // > implicit final def encodeList[A](
+          //   implicit encodeA: Encoder[A]
+          //   ): AsArray[List[A]]
           Response[F](status = Status.Ok)
             .withEntity[List[Messages.Message]](
               _messages
@@ -268,32 +274,38 @@ object server {
       // This service handles POST /messages
       case req @ POST -> Root / "messages"  =>
         for {
-          // This API requires authorization. As a result, let's get the 'x-secret- header
-          // and verify that the header's value matches the real secret's value.
+          // This API requires authorization. As a result, let's
+          // get the 'x-secret- header and verify that
+          // the header's value matches the real secret's value.
           header <- getSecretHeader(req.headers)
           _ <- {
             if (secret.value === header.value) Sync[F].unit
             else Sync[F].raiseError(ApiError.IncorrectSecretHeaderValue)
           }
           // Invoke the org.http4s.Media#as method:
-          // > final def as[A](implicit F: MonadThrow[F], decoder: EntityDecoder[F, A]): F[A]
+          // > final def as[A](
+          //    implicit F: MonadThrow[F],
+          //    decoder: EntityDecoder[F, A]
+          //   ): F[A]
           // Note that org.http4s.Request extends Media
           createMessageRequest <- req.as[CreateMessageRequest]
             .adaptError {
-              // adaptError is an extension methon on MonadErrorOps. It will map, in this case,
-              // a Throwable => Throwable.
-              // > def adaptError(pf: PartialFunction[E, E])(implicit F: MonadError[F, E]): F[A]
-              // ApiError.InvalidCreateMessageRequestPayload(e)
-              // In this case, any failure to read the Request as a CreateMessageRequest
-              // will have an error mapped to ApiError.InvalidCreateMessageRequestPayload(e).
+              // adaptError is an extension method on MonadErrorOps.
+              // It will map, in this case, a Throwable => Throwable.
+              // > def adaptError(pf: PartialFunction[E, E])(
+              //    implicit F: MonadError[F, E]
+              //  ): F[A]
+              // In this case, any other failure will be mapped
+              // to ApiError.InvalidCreateMessageRequestPayload(e).
               case e => ApiError.InvalidCreateMessageRequestPayload(e)
             }
-          // Since Instant.now(Clock.systemUTC()) is not referentially transparent, it must be
+          // Since Instant.now(Clock.systemUTC()) is not referentially
+          // transparent, it must be
           // wrapped in Sync[F]#delay.
           // Its signature is:
           // > def delay[A](thunk: => A): F[A]
-          // The A input is evaluated in a by-name manner, i.e. it's not evaluated
-          // until it's accessed.
+          // The A input is evaluated in a by-name manner, i.e.
+          // it's not evaluated until it's accessed.
           now <- Sync[F].delay(Instant.now(Clock.systemUTC()))
           // Construct a Messages.Message
           msg = Messages.Message(createMessageRequest.content, now)
@@ -305,7 +317,6 @@ object server {
         }
     }
   }
-
 }
 ```
 
@@ -317,10 +328,10 @@ package net.ch3
 import cats.effect.IO
 import io.circe.Json
 import io.circe.syntax._
+
 import java.time.Instant
 import munit.CatsEffectSuite
-import net.ch3.models.Secret
-import net.ch3.server.Messages
+import net.ch3.server.{Messages, Secret}
 import org.http4s.HttpRoutes
 import org.http4s._
 import org.http4s.circe.{jsonDecoder, jsonEncoder}
@@ -347,13 +358,13 @@ final class serverspec extends CatsEffectSuite {
 
   // Since IO[A] is covariant, any function that requires an IO[A] will accept
   // an IO[Nothing] since Nothing is at the bottom of Scala's class hierarchy.
-  // See https://github.com/typelevel/cats-effect/blob/v2.5.1/core/shared/src/main/scala/cats/effect/IO.scala#L85
   // In short, it's convenient to use
   // val notUsed: IO[Nothing]
   //    rather than
   // def notUsed[A] : IO[A]
   // as the former is more concise.
-  private val notUsed: IO[Nothing] = IO.raiseError(new RuntimeException("not used - should not be called!"))
+  private val notUsed: IO[Nothing] =
+    IO.raiseError(new RuntimeException("not used - should not be called!"))
 
   // Although it won't be used, it's necessary to create a Uri for constructing an HTTP Request
   private val TestUri: Uri = uri"http://www.only-used-for-testing.com"
@@ -380,7 +391,8 @@ final class serverspec extends CatsEffectSuite {
     val messagesImpl: Messages[IO] =
       stubMessagesImpl(IO.pure(messages), notUsed)
 
-    val trustedAuthToken: Secret = Secret("not used since GET does not require the x-secret header")
+    val trustedAuthToken: Secret =
+      Secret("not used since GET does not require the x-secret header")
 
     // Build the HttpRoutes[IO] by calling server.routes.
     val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
@@ -392,14 +404,17 @@ final class serverspec extends CatsEffectSuite {
     )
 
     val result: IO[(Status, Json)] = for {
-      // Apply the HttpRequest to routes#run, which will return an OptionT[IO, Response[F]].
-      // Again, recall HttpRoutes[IO] is simply a type alias for
-      // Kleisli[OptionT[IO, *], Request[IO], Response[IO]]
+      // Apply the HttpRequest to routes#run, which will return an
+      // OptionT[IO, Response[F]]. Again, recall HttpRoutes[IO] is
+      // simply a type alias for Kleisli[OptionT[IO, *], Request[IO], Response[IO]]
       // By applying the Request[IO], our result is OptionT[IO, Response[IO]].
-      // To get at the IO[Response[IO]], I call OptionT#getOrElseF, which will raise the given
-      // error if the value of the OptionT type is empty.
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
-      // Decode the HTTP Response to JSON. In this case, the payload will attempted to be decoded as JSON
+      // To get at the IO[Response[IO]], I call OptionT#getOrElseF, which
+      // will raise the given error if the value of the OptionT type is empty.
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
+      // Decode the HTTP Response to JSON. In this case,
+      // the payload will attempted to be decoded as JSON
       json <- resp.as[Json]
     } yield (resp.status, json)
 
@@ -411,7 +426,10 @@ final class serverspec extends CatsEffectSuite {
         assertEquals(
           json,
           Json.arr(
-            Json.obj("content" := content, "timestamp" := "1970-01-01T00:00:00")
+            Json.obj(
+              "content" := content,
+              "timestamp" := "1970-01-01T00:00:00"
+            )
           )
         )
     }
@@ -423,9 +441,11 @@ final class serverspec extends CatsEffectSuite {
     val messagesImpl: Messages[IO] =
       stubMessagesImpl(notUsed, notUsed)
 
-    val trustedAuthToken: Secret = Secret("not used since the request does not include an x-secret header")
+    val trustedAuthToken: Secret =
+      Secret("not used since the request does not include an x-secret header")
 
-    val routes: HttpRoutes[IO] = server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
+    val routes: HttpRoutes[IO] =
+      server.routes[IO](messagesImpl, noOpLog, trustedAuthToken)
 
     // Build a POST with a JSON payload
     val request: Request[IO] = Request[IO](
@@ -436,7 +456,9 @@ final class serverspec extends CatsEffectSuite {
     )
 
     val result: IO[Status] = for {
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
     } yield resp.status
 
     // Verify the HTTP Response's status = 401
@@ -445,9 +467,11 @@ final class serverspec extends CatsEffectSuite {
     }
   }
 
-  test("POST /messages returns a 401 for a request including a x-secret header with the wrong value") {
-    // Observe that both IO arguments are notUsed since Messages#create should
-    // never be called since the request's x-secret header does not equal the server's secret.
+  test("POST /messages returns a 403 for a request including " +
+    "a x-secret header with the wrong value") {
+    // Observe that both IO arguments are notUsed since
+    // Messages#create should never be called since the request's
+    // x-secret header does not equal the server's secret.
     val messagesImpl: Messages[IO] =
       stubMessagesImpl(notUsed, notUsed)
 
@@ -464,11 +488,13 @@ final class serverspec extends CatsEffectSuite {
       )
 
     val result: IO[Status] = for {
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
     } yield resp.status
 
     result.map { s: Status =>
-      assertEquals(s, Status.Unauthorized)
+      assertEquals(s, Status.Forbidden)
     }
   }
 
@@ -491,28 +517,38 @@ final class serverspec extends CatsEffectSuite {
       )
 
     val result: IO[Status] = for {
-      resp <- routes.run(request).getOrElseF(IO.raiseError(new RuntimeException("test failed!")))
+      resp <- routes.run(request).getOrElseF(
+        IO.raiseError(new RuntimeException("test failed!"))
+      )
     } yield resp.status
 
     result.map { s: Status =>
       assertEquals(s, Status.Ok)
     }
   }
-
 }
 ```
 
 To wrap up, let's run the tests:
 
 ```scala
-TODO test
+sbt:http4s-book> testOnly *serverspec*
+net.ch3.serverspec:
+  + GET /messages returns a list of messages
+  + POST /messages returns a 401 for a request having
+      no x-secret Header
+  + POST /messages returns a 403 for a request including
+      a x-secret header with the wrong value
+  + POST /messages returns a 200
+[info] Passed: Total 4, Failed 0, Errors 0, Passed 4
+[success] Total time: 3 s, completed Jun 21, 2021 10:14:40 PM
 ```
 
 ## Why Throwable instead of EitherT?
 
-The server and client use an error type of java.lang.Throwable. In my four years of experience
-building production web services to real customers, I've found `F[A]`, where IO is supplied for F
-in the main program, to be a simple choice.
+In the above code, both the server and client code use an error type of java.lang.Throwable.
+In my four years of experience building production web services to real customers,
+I've found `F[A]`, where IO is supplied for F in the main program, to be a simple choice.
 
 Critics of Throwable will correctly point out that Throwable is not sealed. In other words, it can't
 provide any compile-time guarantees that our code will handle all sub-classes of Throwable. Such critics
@@ -545,23 +581,27 @@ Based on my experience, I recommend:
       routes typically requires more interfaces as parameters to `def routes`. That results in in more complicated and
       bloated tests. The bloat comes into play since, when
       testing a route in the manner from `serverspec.scala`, every test requires an implementation of each interface.
-      If multiple, unrelated routes are grouped together into a single 'def routes', there most certainly will
-      involve stubbed
-        - Example: `GET and POST /messages` is, at face-value, reasonable for services to keep within the same `def routes`.
-        I say "reasonable" since they both share an underlying "Messages" interface. However, adding `POST /login` to a
-        `def routes` that includes `GET and POST /messages` would be a poor choice. Given that login and messages are
-        separate domains, they likely require separate interfaces. So, if we did group these services together, every
-        time we wrote a test for this `def routes`, we'd have to include an un-used interface for `POST /login` API while
-        testing `GET and POST /messages`. This bloat will continue to grow as more unrelated routes are added.
+      Grouping together unrelated routes into a single 'def routes' will result in a bloated and hard to maintain
+      `def routes` file.
+        - Example: `GET and POST /messages` from this chapter's code is, at face-value, reasonable for services to
+        keep within the same `def routes`. I say "reasonable" since they both share an underlying "Messages" interface.
+        However, adding `POST /login` to a `def routes` that includes `GET and POST /messages` would be a poor choice.
+        Given that login and messages are separate domains, they likely require separate interfaces. So, if we did
+        group these services together, every time we wrote a test for this `def routes`, we'd have to include an
+        un-used interface for `POST /login` API while testing `GET and POST /messages`. This bloat will continue to
+        grow as more unrelated routes are added.
  - Use a middleware for each routes, i.e. don't re-use them across different `def routes` in objects/classes.
-    - Re-using middlewares across routes results in tight coupling across services. When using a shared middleware, any
-      changes could ripple out and break the other route. Tight coupling makes it harder to make precise changes without
-      impacting a good deal of the code-base. That slows down development, which makes for a competitive disadvantage.
+    - Re-using middlewares across separate `def routes` files can result in tight coupling across services. When using
+      a shared middleware, any changes could ripple out and break the other route. Tight coupling makes it harder to
+      make precise changes without impacting a good deal of the code-base. That slows down development, which makes
+      for a competitive disadvantage.
     - Consequently, I recommend separate AppError sealed trait hierarchies per `def routes`.
-        - Although it may result in duplicating code, using a separate error per routes captures all error cases, no more
-          or less.
+        - Although it may result in duplicating code, using a separate error per routes captures all error cases, no
+          more  or less.
 
 Note that each test creates a local HttpRoutes[IO]. As a result, they are easy to reason about since there's no
 shared state. Also, there's no risk of changes in one test breaking another. The fact that they're separate entirely
 means that we can run individual tests in parallel. Lastly, the `munit-cats-effect` test library handles actual
 `unsafeRunSync`, namely `IO[A] => A`.
+
+\newpage
